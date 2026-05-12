@@ -1,0 +1,31 @@
+# Global rule: awareness band → choice_count + tone palette
+# Authority: ADR 0006 + docs/mechanic-spec.md "## Choice Generation Strategy" 섹션
+# Consumed by: 시스템 프롬프트 빌더 (Phase 1.0+)
+
+bands:
+  - range: [0, 30]
+    choice_count: 3
+    tone_palette: [empathetic, provocative, deflecting]
+    rule: "return EXACTLY 3 choices, covering ALL three tones"
+    description_ko: "공감/도발/회피 — 세 가지 톤 모두 1개씩"
+
+  - range: [30, 60]
+    choice_count: 2
+    tone_palette: [empathetic, provocative, deflecting]
+    rule: "return EXACTLY 2 choices; LLM picks 2 best-suited tones from palette"
+    description_ko: "LLM이 상황에 맞춰 2개 톤 선택"
+
+  - range: [60, 85]
+    choice_count: 1
+    tone_palette: [acknowledging]
+    rule: "return EXACTLY 1 choice with tone 'acknowledging'"
+    description_ko: "인정형 단일 선택지 — NPC가 압박하는 단계"
+
+  - range: [85, 100]
+    choice_count: 0
+    tone_palette: []
+    rule: "return empty choices array; free input only"
+    description_ko: "자유 입력만 — 안전 4-layer 활성화 (ADR 0009)"
+
+# Lore link: docs/mapping-spec.md의 "3→2→1→0 UI 축소" 행
+# 의미: 깨어날수록 *주어진 선택지*가 줄고 *자기 언어*가 회복됨
