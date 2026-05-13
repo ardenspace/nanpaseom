@@ -14,6 +14,11 @@ vocabulary:
   - pattern   # 혜안용 (perceptual/existential) — ADR 0006
   - purpose   # 수리공/어부 collapse 어휘 — ADR 0006
 
+# Runtime accumulation 형태 미리보기 — ADR 0021
+# 시스템 프롬프트에 들어갈 때 vocab 의 부분집합 literal list 로 들어감.
+# 산문 시나리오 / 자연어 표현 금지. vocab 밖은 silent drop (`outside_vocab_action`).
+example_accumulation: "[pattern, fear, loss]"
+
 rules:
   max_tags_per_turn: 3
   accumulation: "append-only, duplicates collapsed"
