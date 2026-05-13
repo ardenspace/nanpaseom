@@ -27,20 +27,20 @@ sprite:
 voice:
   awakening_bands:
     - range: [0, 30]
-      tone: "트로프 안에서 충실"
+      npc_tone: "트로프 안에서 충실"
       sample_lines:
         - "이걸 고쳐야 해. 더 필요해."
         - "도구가 부족해. 루비 있어?"
     - range: [30, 60]
-      tone: "결핍감의 미세한 균열"
+      npc_tone: "결핍감의 미세한 균열"
       sample_lines:
         - "이상하네… 손이 왜 이렇게 무겁지."
     - range: [60, 85]
-      tone: "트로프의 인지"
+      npc_tone: "트로프의 인지"
       sample_lines:
         - "내가 무엇을 위해 망치질했지."
     - range: [85, 100]
-      tone: "purpose-loop collapse"
+      npc_tone: "purpose-loop collapse"
       sample_lines:
         - "내가 준 루비… 다 어디로 갔어. 보트는 왜 안 고쳐졌어."
 

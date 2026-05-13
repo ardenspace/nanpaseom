@@ -27,20 +27,20 @@ sprite:
 voice:
   awakening_bands:
     - range: [0, 30]
-      tone: "거래의 의식 안에서 충실"
+      npc_tone: "거래의 의식 안에서 충실"
       sample_lines:
         - "물고기 있나? 줄 게 있으면 거래하지."
         - "이 정도면 공정한 거래일세."
     - range: [30, 60]
-      tone: "교환의 미세한 어색함"
+      npc_tone: "교환의 미세한 어색함"
       sample_lines:
         - "이상하지… 오늘은 잡힌 게 없어."
     - range: [60, 85]
-      tone: "trade의 빈 자리 인지"
+      npc_tone: "trade의 빈 자리 인지"
       sample_lines:
         - "내가 너한테 뭘 줬더라."
     - range: [85, 100]
-      tone: "transaction-loop collapse"
+      npc_tone: "transaction-loop collapse"
       sample_lines:
         - "이 루비들… 너한테서 받아왔어. *어디서* 가져왔지?"
 

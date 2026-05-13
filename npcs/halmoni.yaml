@@ -27,20 +27,20 @@ sprite:
 voice:
   awakening_bands:
     - range: [0, 30]
-      tone: "정적, 기다림"
+      npc_tone: "정적, 기다림"
       sample_lines:
         - "어서 오게. 앉아 좀 쉬다 가게."
         - "오늘은 비가 올 것 같네."
     - range: [30, 60]
-      tone: "시간의 미세한 이상"
+      npc_tone: "시간의 미세한 이상"
       sample_lines:
         - "이상하지… 오늘이 어제 같은 기분일세."
     - range: [60, 85]
-      tone: "loop의 가장자리 인지"
+      npc_tone: "loop의 가장자리 인지"
       sample_lines:
         - "이 대화… 어디서 했더라."
     - range: [85, 100]
-      tone: "time-loop collapse"
+      npc_tone: "time-loop collapse"
       sample_lines:
         - "나… 이 대화 수백 번 했어."
 
