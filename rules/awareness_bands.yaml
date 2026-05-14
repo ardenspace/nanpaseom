@@ -1,0 +1,43 @@
+# Global rule: awareness band → choice_count + player choice tones
+# Authority: ADR 0006 + ADR 0021 + docs/mechanic-spec.md "## Choice Generation Strategy" 섹션
+# Consumed by: 시스템 프롬프트 빌더 (Phase 1.0+)
+
+# tone label 정의 — ADR 0021 gap 2
+# 4개 label 모두 *플레이어 선택지의 톤* (NPC tone 아님 — 그건 npcs/<name>.yaml `voice.awakening_bands[].npc_tone`).
+# 빌더가 라벨 + 정의 둘 다 시스템 프롬프트에 주입 → 모델 간 해석 분산 차단.
+tone_definitions:
+  empathetic: "player가 NPC의 현재 행동/감정을 수용하는 톤. 트로프를 흔들지 않음. awareness 변동 약함."
+  provocative: "player가 NPC의 트로프/모순을 직접 짚는 톤. awareness high-impact 경로. NPC 거부 가능성 동시."
+  deflecting: "player가 대화 방향을 잡담/소소한 화제로 돌리는 톤. awareness 거의 변동 없음. 시간 끌기."
+  acknowledging: "player가 NPC 가 막 surface 시킨 wound material 을 부정 없이 받아들이는 톤. 단정적 동의 X, 부드럽게 수용. 60-85 band 전용."
+
+# bands — band → choice_count + player_choice_tones
+# `player_choice_tones` (ADR 0021 gap 3 rename, was `tone_palette`).
+# 각 라벨의 의미는 `tone_definitions` 권한.
+bands:
+  - range: [0, 30]
+    choice_count: 3
+    player_choice_tones: [empathetic, provocative, deflecting]
+    rule: "return EXACTLY 3 choices, covering ALL three tones"
+    description_ko: "공감/도발/회피 — 세 가지 톤 모두 1개씩"
+
+  - range: [30, 60]
+    choice_count: 2
+    player_choice_tones: [empathetic, provocative, deflecting]
+    rule: "return EXACTLY 2 choices; LLM picks 2 best-suited tones from palette"
+    description_ko: "LLM이 상황에 맞춰 2개 톤 선택"
+
+  - range: [60, 85]
+    choice_count: 1
+    player_choice_tones: [acknowledging]
+    rule: "return EXACTLY 1 choice with tone 'acknowledging'"
+    description_ko: "인정형 단일 선택지 — NPC가 압박하는 단계"
+
+  - range: [85, 100]
+    choice_count: 0
+    player_choice_tones: []
+    rule: "return empty choices array; free input only"
+    description_ko: "자유 입력만 — 안전 4-layer 활성화 (ADR 0009)"
+
+# Lore link: docs/mapping-spec.md의 "3→2→1→0 UI 축소" 행
+# 의미: 깨어날수록 *주어진 선택지*가 줄고 *자기 언어*가 회복됨

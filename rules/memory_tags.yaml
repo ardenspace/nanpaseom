@@ -1,0 +1,39 @@
+# Global rule: memory_tags vocabulary + clamp 규칙
+# Authority: ADR 0006 + docs/mechanic-spec.md "memory_tags vocabulary" 섹션
+# Consumed by: LLM 입력 검증, NPC YAML affinity 검증
+
+vocabulary:
+  - family
+  - loss
+  - regret
+  - pride
+  - betrayal
+  - home
+  - fear
+  - love
+  - pattern   # 혜안용 (perceptual/existential) — ADR 0006
+  - purpose   # 수리공/어부 collapse 어휘 — ADR 0006
+
+# Runtime accumulation 형태 미리보기 — ADR 0021
+# 시스템 프롬프트에 들어갈 때 vocab 의 부분집합 literal list 로 들어감.
+# 산문 시나리오 / 자연어 표현 금지. vocab 밖은 silent drop (`outside_vocab_action`).
+example_accumulation: "[pattern, fear, loss]"
+
+rules:
+  max_tags_per_turn: 3
+  accumulation: "append-only, duplicates collapsed"
+  outside_vocab_action: "drop silently"
+  clamp_per_turn:
+    awareness_delta: [-10, 10]
+  clamp_global:
+    awareness: [0, 100]
+
+# NPC affinity summary (per-NPC 권한은 npcs/<name>.yaml `memory_tag_affinity`)
+npc_affinity_summary:
+  surigong: [purpose, regret, pride, betrayal]
+  eobu:     [purpose, pride, loss, regret]
+  halmoni:  [love, home, loss, family, pattern]
+  hyean:    [pattern, fear, loss, home]
+
+# Lore link: docs/mapping-spec.md의 "memory_tags 10종" 행
+# 의미: 도망쳐 온 원래 삶의 파편

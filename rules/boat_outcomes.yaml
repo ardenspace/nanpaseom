@@ -1,0 +1,46 @@
+# Global rule: boat moment 5분기 분류
+# Authority: ADR 0002 + docs/mechanic-spec.md "## Departure Ending (Boat Moment)" 섹션
+# Consumed by: boat moment 메타 엔딩 합성 (Phase 2+)
+
+outcomes:
+  - id: alone_leave
+    label_ko: "혼자 떠남"
+    when:
+      player_choice: "leave"
+      condition: "no awakened NPC accepted OR awakened_count == 0"
+
+  - id: partial_leave
+    label_ko: "일부 떠남"
+    when:
+      player_choice: "leave"
+      condition: "some awakened NPC accepted, some refused"
+
+  - id: all_leave
+    label_ko: "다같이 떠남"
+    when:
+      player_choice: "leave"
+      condition: "all awakened NPC accepted"
+
+  - id: npc_only_leave
+    label_ko: "NPC만 떠남"
+    when:
+      player_choice: "stay"
+      condition: "awakened_count >= 2 AND >=1 leave-disposition"
+
+  - id: all_stay
+    label_ko: "다같이 잔류"
+    when:
+      player_choice: "stay"
+      condition: "all stay-disposition OR awakened_count < 2"
+
+free_input_fallback:
+  id: linger
+  label_ko: "잠시 더 머문다"
+  when: "player_free_input ambiguous OR cannot be classified"
+  action: "return to scene"
+
+seats_limit: null  # 좌석 한계 없음
+unawakened_npc_default: "stay"  # 미각성 NPC는 보트 의미 이해 못 함 → 자동 잔류
+
+# Lore link: docs/mapping-spec.md의 "보트 5분기 엔딩" 행
+# 의미: "떠나고 싶은 의지"의 회복 양상
