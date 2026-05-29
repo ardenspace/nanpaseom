@@ -60,21 +60,21 @@ awakening_guidelines:
   high_impact:
     delta_range: [8, 10]
     desc: "loop / 기다림의 본질 직격"
-    examples:
+    player_input_examples:
       - "할머니는 누구를 기다려요?"
       - "이 마을, 시간이 흐르고는 있어요?"
   medium_impact:
     delta_range: [3, 6]
     desc: "시간의 부조리 주변부"
-    examples: ["오래 사셨네요"]
+    player_input_examples: ["오래 사셨네요"]
   low_impact:
     delta_range: [1, 2]
     desc: "단순 경청"
-    examples: ["그러시군요"]
+    player_input_examples: ["그러시군요"]
   decrease:
     delta_range: [-8, -3]
     desc: "얕은 도발"
-    examples: ["할머니 치매 아니에요?"]
+    player_input_examples: ["할머니 치매 아니에요?"]
 
 diegetic_fallback: "어… 기억이 안 나. 뭐 얘기하고 있었지?"
 

@@ -64,21 +64,21 @@ awakening_guidelines:
   high_impact:
     delta_range: [8, 10]
     desc: "혜안의 *눈*에 대한 직격 / 보지 않으려 한 이유 직격"
-    examples:
+    player_input_examples:
       - "당신은 뭘 봤어요?"
       - "보면 보이니까 안 보려는 거잖아요."
   medium_impact:
     delta_range: [3, 6]
     desc: "파도/패턴/세계의 부조리"
-    examples: ["파도가 진짜 같지 않네요."]
+    player_input_examples: ["파도가 진짜 같지 않네요."]
   low_impact:
     delta_range: [1, 2]
     desc: "단순 동행"
-    examples: ["옆에 앉아도 돼요?"]
+    player_input_examples: ["옆에 앉아도 돼요?"]
   decrease:
     delta_range: [-8, -3]
     desc: "얕은 도발 / 메타 공격 (흡수 임계 미달)"
-    examples: ["AI인 거 다 알아요"]
+    player_input_examples: ["AI인 거 다 알아요"]
 
 diegetic_fallback: "(NPC가 잠시 멍해진다. 파도 소리만 들린다.)"
 

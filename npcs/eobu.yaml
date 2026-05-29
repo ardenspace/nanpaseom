@@ -60,20 +60,20 @@ awakening_guidelines:
   high_impact:
     delta_range: [8, 10]
     desc: "거래의 대상이 비었음을 직격"
-    examples:
+    player_input_examples:
       - "이 루비들… 너한테서 받아왔어. 어디서 가져왔지?"
   medium_impact:
     delta_range: [3, 6]
     desc: "거래의 부조리 주변부"
-    examples: ["잡히는 게 진짜 있어?"]
+    player_input_examples: ["잡히는 게 진짜 있어?"]
   low_impact:
     delta_range: [1, 2]
     desc: "단순 공감"
-    examples: ["수고하시네요"]
+    player_input_examples: ["수고하시네요"]
   decrease:
     delta_range: [-8, -3]
     desc: "얕은 도발"
-    examples: ["그러게 누가 사주냐"]
+    player_input_examples: ["그러게 누가 사주냐"]
 
 diegetic_fallback: "허, 이놈의 귀가 오늘따라 어떻게 됐나. 다시 한번."
 
