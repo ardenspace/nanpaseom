@@ -64,7 +64,7 @@ awakening_guidelines:
     delta_range: [8, 10]
     desc: "거래의 대상이 비었음을 직격"
     player_input_examples:
-      - "이 루비들... 나는 *어디서* 가져온 거지?"
+      - "당신이 해온 모든 일이 이미 짜여진 시스템 속에서 발생한 거라면요?"
   medium_impact:
     delta_range: [3, 6]
     desc: "거래의 부조리 주변부"
