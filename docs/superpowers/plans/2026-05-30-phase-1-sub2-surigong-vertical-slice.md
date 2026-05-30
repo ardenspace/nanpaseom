@@ -2,15 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 수리공 한 명의 turn loop 를 end-to-end 로 닫는다 — `POST /turn` 입력이 `build_prompt`(Sub-1) → Claude tool-use → Layer 4 검증 → awareness 서버 클램프 → Postgres 영속화 → 다음 턴 `build_prompt` 가 갱신된 band 를 렌더하는 것까지.
+**Goal:** 수리공 한 명의 turn loop 를 end-to-end 로 닫는다 — `POST /turn` 입력이 `build_prompt`(Sub-1) → llama-server(Gemma 4) json_schema → Layer 4 검증 → awareness 서버 클램프 → Postgres 영속화 → 다음 턴 `build_prompt` 가 갱신된 band 를 렌더하는 것까지.
 
-**Architecture:** Sub-1 의 `build_prompt`/`load_rules`/`load_npc`/`resolve_band` 를 그대로 import 해 `system` 한 장을 만들고, 그 주위에 messages orchestration + Anthropic tool-use 호출 + Layer 1/4 안전 + clamp + psycopg3 Postgres 영속화를 두른다. LLM 호출은 의존성 주입 (`llm_call`) 으로 추상화 → gate 테스트는 stub client 로 결정적, live signal 은 `-m live` 로 격리.
+**Architecture:** Sub-1 의 `build_prompt`/`load_rules`/`load_npc`/`resolve_band` 를 그대로 import 해 `system` 한 장을 만들고, 그 주위에 messages orchestration + llama-server `json_schema` 호출 + Layer 1/4 안전 + clamp + psycopg3 Postgres 영속화를 두른다. LLM 호출은 의존성 주입 (`llm_call`) 으로 추상화 → gate 테스트는 stub 으로 결정적, live signal 은 `-m live` (로컬 llama-server) 로 격리.
 
-**Tech Stack:** Python 3.11+, FastAPI, Anthropic SDK (tool-use + prompt caching), psycopg3 (sync), Postgres 16 (docker-compose), pydantic v2, pytest + httpx. 기존 Sub-1 (`app/prompt_builder/`) 변경 없음.
+**Tech Stack:** Python 3.11+, FastAPI, httpx → llama-server (llama.cpp, local Gemma 4 26B-A4B, json_schema 제약 디코딩), psycopg3 (sync), Postgres 16 (docker-compose), pydantic v2, pytest. 기존 Sub-1 (`app/prompt_builder/`) 변경 없음.
 
-**Authority docs touched (audit trail 우선 — Task 1):** ADR 0027 (Claude tier + tool-use), ADR 0028 (Postgres 최소 스키마 / deferred 컬럼), `docs/mechanic-spec.md` Error-Handling 섹션, `docs/mapping-spec.md` turn-output 행.
+**Authority docs touched (audit trail 우선 — Task 1):** ADR 0027 (local Gemma 4 tier + json_schema 디코딩), ADR 0028 (Postgres 최소 스키마 / deferred 컬럼), `docs/mechanic-spec.md` Error-Handling 섹션, `docs/mapping-spec.md` 미매핑 항목.
 
-**Prerequisite (실행 전 1회):** `docker compose up -d db` 로 Postgres 기동. store/turn/api 테스트는 `DATABASE_URL` (기본 `postgresql://nanpaseom:nanpaseom@localhost:5432/nanpaseom`) 에 연결.
+**Prerequisite (실행 전):** (1) `docker compose up -d db` 로 Postgres 기동 (store/turn/api 테스트). (2) live eval (Task 10) + 수동 실행 시 llama-server 기동:
+`llama-server -m /Users/arden/gemma-4-26B/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf --host 127.0.0.1 --port 8080 --jinja -c 8192` (gate 테스트는 stub 이라 불필요).
 
 ---
 
@@ -18,19 +19,19 @@
 
 | 파일 | 책임 |
 |---|---|
-| `docs/adr/0027-claude-tier-and-tool-use.md` | tool-use 계약 + 모델 tier 결정 기록 |
+| `docs/adr/0027-local-gemma-json-schema-decoding.md` | local Gemma 4 tier + json_schema 제약 디코딩 계약 결정 기록 |
 | `docs/adr/0028-postgres-minimal-schema-deferred-columns.md` | 최소 스키마 / deferred 컬럼 결정 기록 |
 | `pyproject.toml` | 신규 deps + pytest 마커/addopts |
 | `docker-compose.yml` | Postgres 16 서비스 |
 | `migrations/001_init.sql` | `npc_state` + `chat_logs` DDL |
-| `app/config.py` | env 설정 (DATABASE_URL / ANTHROPIC_API_KEY / MODEL) |
+| `app/config.py` | env 설정 (DATABASE_URL / LLAMA_SERVER_URL / MODEL) |
 | `app/models.py` | 도메인 모델: `Choice`, `TurnReply`, `NpcState`, `TurnResponse` |
 | `app/safety/input_filter.py` | Layer 1: 길이 캡 + 페르소나-공격 키워드 차단 |
 | `app/safety/output_validator.py` | Layer 4: reply 길이/leak/choice count·tone/sample_lines verbatim |
 | `app/store/db.py` | psycopg 연결 + migration 적용 헬퍼 |
 | `app/store/repo.py` | `mint_session` / `load_npc_state` / `save_npc_state` / `load_recent_turns` / `next_turn_index` / `append_chat_log` |
-| `app/llm/tool_schema.py` | `EMIT_TURN_TOOL` (Anthropic tool JSON schema) |
-| `app/llm/client.py` | `call(system, messages) -> TurnReply`, `LLMError` |
+| `app/llm/tool_schema.py` | `EMIT_TURN_SCHEMA` (turn JSON schema for `response_format`) |
+| `app/llm/client.py` | `call(system, messages) -> TurnReply` (httpx → llama-server), `LLMError` |
 | `app/turn/loop.py` | `run_turn(...)` 오케스트레이션 |
 | `app/api/main.py` | FastAPI `POST /turn` |
 | `scripts/check_no_hardcoded_dialogue.py` | enforcement grep |
@@ -45,17 +46,17 @@
 ## Task 1: ADR 2개 + spec 갱신 (audit trail 우선)
 
 **Files:**
-- Create: `docs/adr/0027-claude-tier-and-tool-use.md`
+- Create: `docs/adr/0027-local-gemma-json-schema-decoding.md`
 - Create: `docs/adr/0028-postgres-minimal-schema-deferred-columns.md`
 - Modify: `docs/mechanic-spec.md` (Error Handling 섹션, line ~199-212)
 - Modify: `docs/mapping-spec.md` (turn-output 메커니즘 행)
 
 - [ ] **Step 1: ADR 0027 작성**
 
-Create `docs/adr/0027-claude-tier-and-tool-use.md`:
+Create `docs/adr/0027-local-gemma-json-schema-decoding.md`:
 
 ```markdown
-# ADR 0027: Claude API tier + tool-use 가 prompt-parse-retry 전제를 대체
+# ADR 0027: local Gemma 4 (llama-server) + json_schema 제약 디코딩이 prompt-parse-retry 전제를 대체
 
 - Status: Accepted
 - Date: 2026-05-30
@@ -63,34 +64,39 @@ Create `docs/adr/0027-claude-tier-and-tool-use.md`:
 
 ## Context
 
-mechanic-spec Approach C (line 92) 의 모델 stack 은 llama-server + local Gemma, Week-1 tier 후보는 local Gemma / Groq Gemma / gpt-4o-mini (line 233). Error-Handling 섹션 (line 199-212) 전체가 *prompt-for-JSON → parse → retry once → diegetic fallback* 로 쓰임 — 로컬 모델이 clean JSON 을 못 내는 전제.
+mechanic-spec Approach C (line 92, 232) 는 *llama-server + local Gemma 26-27B Q4 on Mac Mini* 를 Tier-1 로 명세. 이 서버에 `gemma-4-26B-A4B-it` (MoE ~4B active, unsloth Q4_K_M GGUF, `/Users/arden/gemma-4-26B/`) 가 `llama-server` (llama.cpp, homebrew) 로 서빙 준비됨 — Approach C 의 원래 가정과 정합. Error-Handling 섹션 (line 199-212) 전체가 *prompt-for-JSON → parse → retry once → diegetic fallback* 로 쓰임 — 로컬 모델이 clean JSON 을 못 내는 전제.
 
-Sub-2 는 사용자 directive 로 Claude API 를 model tier 로 사용. Claude 는 tool-use (forced structured output) 를 지원 — API 가 schema 를 강제하므로 malformed JSON 이 거의 불가능. 이는 후보군 deviation (Claude 미포함) + error-handling 전제 대체 라는 두 authority-touching 사실.
+llama-server 는 `--json-schema` / per-request `response_format: {type: "json_schema"}` 로 **GBNF 제약 디코딩** 을 제공 — 출력이 schema-valid JSON 임을 보장. 즉 "malformed JSON 거의 불가" 속성이 클라우드 tool-use 없이 로컬에서 확보됨. 이는 error-handling 전제 대체 라는 authority-touching 사실.
+
+(이전 라운드 brainstorming 은 Anthropic Claude tool-use 를 택했으나, API 키 부재 + 로컬 추론 선호로 폐기. 로컬 Gemma 가 Approach C 의 원래 tier 였으므로 이 결정은 tier deviation 이 아니라 *복귀*.)
 
 ## Decision
 
-1. **Model tier = Anthropic Claude API** (Sub-2 slice). mechanic-spec 후보군에 Claude 추가. failover tier 추상화는 Sub-2b.
-2. **턴 JSON 계약 = tool-use** (`emit_turn` tool: reply / awareness_delta / reason / memory_tags / choices). 모델이 반드시 그 schema 로 응답.
-3. **diegetic fallback 재정의** = parse 실패가 아니라 *API/timeout 에러 + Layer 4 위반* 전용.
-4. prompt caching: `system` 블록에 cache_control (claude-api 스킬 기본).
+1. **Model tier = local Gemma 4 26B-A4B via llama-server** (Approach C Tier-1 확정). failover tier 추상화는 Sub-2b.
+2. **턴 JSON 계약 = `json_schema` 제약 디코딩.** turn 스키마 (`reply` / `awareness_delta` / `reason` / `memory_tags` / `choices`) 를 JSON schema 로 정의, llama-server `/v1/chat/completions` 의 `response_format: {type: "json_schema", json_schema: {...}}` 에 주입해 출력 강제.
+3. **diegetic fallback 재정의** = parse 실패가 아니라 *llama-server 에러/timeout + Layer 4 위반* 전용.
+4. prompt caching: llama.cpp 의 서버-측 prefix KV cache (정적 system 접두 자동 재사용). 코드 측 제어 불필요.
+5. `system` 전달: OpenAI-호환 system 메시지 + `--jinja` (Gemma chat-template). Gemma 가 system role 미지원 시 첫 user 메시지에 prepend (구현 검증 포인트, Task 7).
 
 ## Alternatives Considered
 
-- **A. ★ chosen** — Claude tier + tool-use, error-handling 재정의.
-- **B. prompt-for-JSON + retry (spec 그대로)** — local-Gemma 이식성 유지하나 fragile + Claude 강점 버림.
-- **C. hybrid (tool-use + parse seam 유지)** — failover 추상화 정합하나 thin slice 에 seam 조기 도입 (YAGNI). Sub-2b 의 tier 추상화 때로.
+- **A. ★ chosen** — local Gemma 4 + json_schema 제약 디코딩, error-handling 재정의.
+- **B. prompt-for-JSON + retry (spec 원래 경로)** — 그래마 없이 프롬프트 의존. 단순·endpoint무관하나 4B-active 모델엔 fragile → fallback 노이즈.
+- **C. OpenAI tool/function calling on llama-server** — Gemma template/모델 의존적, 4B-active 에서 shape 강제는 json_schema 그래마가 더 견고.
+- **D. Anthropic Claude tool-use (이전 라운드)** — API 키 부재 + 로컬 선호로 폐기.
 
 ## Consequences
 
-- `docs/mechanic-spec.md` Error-Handling 섹션 갱신: JSON parse-failure 경로 near-dead, fallback = API-error/Layer4-위반.
-- `docs/mapping-spec.md` "미매핑 항목 (의도적)" 에 tool-use 계약 추가 (lore 무관 implementation detail).
-- Sub-2b 에서 비-tool 모델 (local Gemma) tier 재도입 시 이 ADR 재방문 (parse seam 필요).
+- `docs/mechanic-spec.md` Error-Handling 섹션 갱신: JSON parse-failure 경로 near-dead (json_schema 제약), fallback = 서버에러/Layer4-위반.
+- `docs/mapping-spec.md` "미매핑 항목 (의도적)" 에 json_schema 계약 추가 (lore 무관 implementation detail; 기존 "LLM 백엔드 tiered failover" 와 동급).
+- live eval 은 클라우드 비용/키 없이 로컬 llama-server 로 실행 — 결정성 gate 외부의 real-model signal 이 무료·재현가능.
+- Sub-2b 에서 비-llama 모델 tier 추가 시 이 ADR 재방문.
 
 ## Related
 
 - `docs/superpowers/specs/2026-05-30-phase-1-sub2-surigong-vertical-slice-design.md` Decision 3.
-- ADR 0023 (sample_lines verbatim ≤ N invariant — tool-use 와 무관하게 live eval 로 검증).
-- mechanic-spec line 199-212 (갱신 대상), 233 (tier 후보군).
+- ADR 0023 (sample_lines verbatim ≤ N invariant — 디코딩 방식과 무관하게 live eval 로 검증).
+- mechanic-spec line 92/232 (llama-server + Gemma Tier-1), line 199-212 (Error-Handling, 갱신 대상).
 ```
 
 - [ ] **Step 2: ADR 0028 작성**
@@ -140,11 +146,11 @@ session_uuid 는 엔드포인트가 `uuid4()` 로 발급 (쿠키/save-code 없�
 `docs/mechanic-spec.md` 의 `## Error Handling and Diegetic Fallbacks` 섹션 (line ~199) 첫 부분에 다음 노트를 추가 (기존 3 failure mode 텍스트 위에):
 
 ```markdown
-> **Sub-2 갱신 (ADR 0027, 2026-05-30):** model tier = Anthropic Claude + **tool-use** 채택으로
-> failure mode (1) JSON parse 는 near-dead (API 가 schema 강제). diegetic fallback 은
-> *parse 실패가 아니라* API/timeout 에러 + Layer 4 위반 전용으로 재정의. failure mode (2)
-> timeout 의 failover tier chain 과 (3) Moderation 은 Sub-2b. 아래 원문은 비-tool (local Gemma)
-> tier 재도입 시의 계약으로 보존.
+> **Sub-2 갱신 (ADR 0027, 2026-05-30):** model tier = local Gemma 4 26B-A4B (llama-server, Approach C
+> Tier-1) + **`json_schema` 제약 디코딩** 채택으로 failure mode (1) JSON parse 는 near-dead
+> (GBNF 그래마가 schema 강제). diegetic fallback 은 *parse 실패가 아니라* llama-server 에러/timeout
+> + Layer 4 위반 전용으로 재정의. failure mode (2) timeout 의 failover tier chain 과 (3) Moderation 은
+> Sub-2b. 아래 원문(prompt-parse-retry)은 비-제약 디코딩 tier 재도입 시의 계약으로 보존.
 ```
 
 - [ ] **Step 4: mapping-spec 미매핑 항목에 turn-output 계약 추가**
@@ -154,7 +160,7 @@ session_uuid 는 엔드포인트가 `uuid4()` 로 발급 (쿠키/save-code 없�
 `docs/mapping-spec.md` 의 `## 미매핑 항목 (의도적)` 리스트 (line 44-48) 에 1줄 추가:
 
 ```markdown
-- 턴 출력 JSON 계약 (tool-use `emit_turn`) — Anthropic 구조화 출력, lore 무관 제작 결정 (ADR 0027)
+- 턴 출력 JSON 계약 (`json_schema` 제약 디코딩, `emit_turn`) — llama.cpp 구조화 출력, lore 무관 제작 결정 (ADR 0027)
 ```
 
 - [ ] **Step 5: YAML/cross-link 검증 후 commit**
@@ -163,8 +169,8 @@ Run: `python3 scripts/check_yaml.py`
 Expected: 모든 yaml parse OK (이 task 는 yaml 변경 없음 — sanity).
 
 ```bash
-git add docs/adr/0027-claude-tier-and-tool-use.md docs/adr/0028-postgres-minimal-schema-deferred-columns.md docs/mechanic-spec.md docs/mapping-spec.md
-git commit -m "ADR 0027/0028 + mechanic/mapping-spec 갱신 — Claude tool-use tier, Postgres 최소 스키마"
+git add docs/adr/0027-local-gemma-json-schema-decoding.md docs/adr/0028-postgres-minimal-schema-deferred-columns.md docs/mechanic-spec.md docs/mapping-spec.md
+git commit -m "ADR 0027/0028 + mechanic/mapping-spec 갱신 — local Gemma 4 json_schema 디코딩, Postgres 최소 스키마"
 ```
 
 ---
@@ -185,21 +191,20 @@ dependencies = [
     "pydantic>=2",
     "jinja2",
     "pyyaml",
-    "anthropic>=0.40",
     "fastapi",
     "uvicorn",
+    "httpx",
     "psycopg[binary]>=3.1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "httpx",
 ]
 
 [tool.pytest.ini_options]
 markers = [
-    "live: 실제 Anthropic API 호출 (수동/nightly, gate 제외)",
+    "live: 실제 llama-server 호출 (수동/nightly, gate 제외)",
 ]
 addopts = "-m 'not live'"
 # repo 루트를 sys.path 에 — editable install 의 finder 는 app 만 매핑하므로
@@ -210,7 +215,7 @@ pythonpath = ["."]
 - [ ] **Step 2: deps 설치**
 
 Run: `.venv/bin/pip install -e ".[dev]"`
-Expected: anthropic / fastapi / psycopg 설치 성공.
+Expected: fastapi / httpx / psycopg 설치 성공.
 
 - [ ] **Step 3: app/config.py 작성**
 
@@ -225,8 +230,10 @@ DATABASE_URL = os.environ.get(
     "DATABASE_URL",
     "postgresql://nanpaseom:nanpaseom@localhost:5432/nanpaseom",
 )
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-MODEL = os.environ.get("NANPASEOM_MODEL", "claude-sonnet-4-6")
+# 로컬 llama-server (llama.cpp). API 키 불필요.
+LLAMA_SERVER_URL = os.environ.get("LLAMA_SERVER_URL", "http://localhost:8080")
+# llama-server alias — 미설정/무시돼도 무방 (단일 모델 서빙).
+MODEL = os.environ.get("NANPASEOM_MODEL", "gemma-4-26b")
 ```
 
 - [ ] **Step 4: docker-compose.yml 작성**
@@ -252,7 +259,7 @@ Expected: `db` 서비스 running.
 
 ```bash
 git add pyproject.toml app/config.py docker-compose.yml
-git commit -m "Sub-2 스캐폴딩 — deps(anthropic/fastapi/psycopg) + config + docker-compose Postgres"
+git commit -m "Sub-2 스캐폴딩 — deps(fastapi/httpx/psycopg) + config(llama-server) + docker-compose Postgres"
 ```
 
 ---
@@ -318,7 +325,7 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'app.models'`.
 Create `app/models.py`:
 
 ```python
-"""Sub-2 도메인 모델. tool-use 출력 + 영속 상태 + 엔드포인트 응답."""
+"""Sub-2 도메인 모델. LLM 구조화 출력 + 영속 상태 + 엔드포인트 응답."""
 
 from typing import Optional
 
@@ -332,7 +339,7 @@ class Choice(BaseModel):
 
 
 class TurnReply(BaseModel):
-    """Anthropic `emit_turn` tool 의 검증된 출력."""
+    """llama-server `emit_turn` json_schema 출력의 검증된 형태."""
     model_config = ConfigDict(extra="forbid")
     reply: str
     awareness_delta: int
@@ -860,29 +867,31 @@ git commit -m "Postgres store — npc_state/chat_logs repo + migration + truncat
 
 ---
 
-## Task 7: Anthropic tool-use client (`app/llm/`)
+## Task 7: llama-server json_schema client (`app/llm/`)
 
 **Files:**
 - Create: `app/llm/__init__.py`, `app/llm/tool_schema.py`, `app/llm/client.py`
 - Test: `tests/llm/__init__.py`, `tests/llm/test_tool_schema.py`
 
-> **실행 노트:** 이 task 구현 시 **claude-api 스킬을 invoke** 해 SDK 사용법 (tool-use, prompt caching, 현 모델 ID) 을 확인할 것. 아래 코드는 기준선 — 스킬이 최신 패턴을 덧댄다.
+> **실행 노트:** 이 task 는 로컬 llama-server 를 호출한다. `client.call` 의 단위 테스트는 turn loop(Task 8)에서 stub 으로 커버 — gate 는 서버 불필요. 실제 연동은 Task 10 live eval + 수동 검증.
+> **Gemma system-role 검증 (ADR 0027 Decision 5):** llama-server `--jinja` 가 Gemma chat-template 적용 시 별도 system role 을 거부/병합할 수 있다. 첫 수동 호출에서 system 메시지가 통하는지 확인하고, 거부되면 `client.call` 안에서 "system 내용을 첫 user 메시지 앞에 prepend" 로 messages 구성을 바꾼다.
 
-- [ ] **Step 1: tool schema 실패 테스트 작성**
+- [ ] **Step 1: schema 실패 테스트 작성**
 
 Create `tests/llm/__init__.py` (빈 파일) 와 `tests/llm/test_tool_schema.py`:
 
 ```python
-from app.llm.tool_schema import EMIT_TURN_TOOL
+from app.llm.tool_schema import EMIT_TURN_SCHEMA
 
 
-def test_tool_schema_required_fields():
-    props = EMIT_TURN_TOOL["input_schema"]["properties"]
-    assert set(EMIT_TURN_TOOL["input_schema"]["required"]) == {
+def test_emit_turn_schema_required_fields():
+    assert set(EMIT_TURN_SCHEMA["required"]) == {
         "reply", "awareness_delta", "reason", "memory_tags", "choices",
     }
+    props = EMIT_TURN_SCHEMA["properties"]
     assert props["awareness_delta"]["type"] == "integer"
     assert props["choices"]["items"]["required"] == ["tone", "text"]
+    assert EMIT_TURN_SCHEMA["additionalProperties"] is False
 ```
 
 - [ ] **Step 2: 실패 확인**
@@ -895,48 +904,39 @@ Expected: FAIL — `ModuleNotFoundError: app.llm`.
 Create `app/llm/__init__.py` (빈 파일) 와 `app/llm/tool_schema.py`:
 
 ```python
-"""Anthropic `emit_turn` tool 정의 — 턴 JSON 계약 (ADR 0027).
+"""턴 JSON 계약 스키마 — llama-server response_format(json_schema) 용 (ADR 0027).
 
-mechanic-spec line 114-128 의 reply/awareness_delta/reason/memory_tags/choices 스키마.
+mechanic-spec line 114-128 의 reply/awareness_delta/reason/memory_tags/choices.
+GBNF 제약 디코딩이 이 스키마로 출력을 강제한다. additionalProperties=False 로
+잉여 필드 차단 (TurnReply 의 extra=forbid 와 정합).
 """
 
-EMIT_TURN_TOOL = {
-    "name": "emit_turn",
-    "description": (
-        "Return the NPC's turn as structured data: the reply line, the awareness "
-        "delta for this turn, a short reason code, surfaced memory tags, and the "
-        "player choice buttons for the next turn."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "reply": {"type": "string", "description": "NPC 발화 (한국어, ≤300자)"},
-            "awareness_delta": {"type": "integer", "description": "이번 턴 awareness 변화 (서버가 [-10,10] 클램프)"},
-            "reason": {"type": "string", "description": "delta 산정 사유 코드"},
-            "memory_tags": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "이번 턴 surface 된 memory tag (서버가 vocab 필터)",
-            },
-            "choices": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "tone": {"type": "string"},
-                        "text": {"type": "string"},
-                    },
-                    "required": ["tone", "text"],
+EMIT_TURN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "reply": {"type": "string"},
+        "awareness_delta": {"type": "integer"},
+        "reason": {"type": "string"},
+        "memory_tags": {"type": "array", "items": {"type": "string"}},
+        "choices": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "tone": {"type": "string"},
+                    "text": {"type": "string"},
                 },
-                "description": "다음 턴 플레이어 선택지 (band 별 개수)",
+                "required": ["tone", "text"],
+                "additionalProperties": False,
             },
         },
-        "required": ["reply", "awareness_delta", "reason", "memory_tags", "choices"],
     },
+    "required": ["reply", "awareness_delta", "reason", "memory_tags", "choices"],
+    "additionalProperties": False,
 }
 ```
 
-- [ ] **Step 4: tool schema 테스트 통과 확인**
+- [ ] **Step 4: schema 테스트 통과 확인**
 
 Run: `.venv/bin/pytest tests/llm/test_tool_schema.py -v`
 Expected: PASS.
@@ -946,59 +946,54 @@ Expected: PASS.
 Create `app/llm/client.py`:
 
 ```python
-"""Anthropic tool-use 호출 wrapper. system 블록에 prompt cache breakpoint.
+"""llama-server json_schema 호출 wrapper.
 
-system + messages → emit_turn tool 강제 호출 → TurnReply.
-API/timeout/계약-위반 = LLMError (turn loop 이 diegetic fallback).
+system + messages → /v1/chat/completions (response_format=json_schema) → TurnReply.
+서버 에러/timeout/schema-위반 = LLMError (turn loop 이 diegetic fallback).
 """
 
-import anthropic
+import json
 
-from app.config import ANTHROPIC_API_KEY, MODEL
-from app.llm.tool_schema import EMIT_TURN_TOOL
+import httpx
+
+from app.config import LLAMA_SERVER_URL, MODEL
+from app.llm.tool_schema import EMIT_TURN_SCHEMA
 from app.models import TurnReply
-
-_client: anthropic.Anthropic | None = None
 
 
 class LLMError(Exception):
     pass
 
 
-def _get_client() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    return _client
-
-
 def call(system: str, messages: list[dict]) -> TurnReply:
+    payload = {
+        "model": MODEL,
+        "messages": [{"role": "system", "content": system}, *messages],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {"name": "emit_turn", "schema": EMIT_TURN_SCHEMA, "strict": True},
+        },
+        "temperature": 0.7,  # mechanic-spec: 약간의 자연 변동 허용
+        "max_tokens": 1024,
+    }
     try:
-        resp = _get_client().messages.create(
-            model=MODEL,
-            max_tokens=1024,
-            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
-            messages=messages,
-            tools=[EMIT_TURN_TOOL],
-            tool_choice={"type": "tool", "name": "emit_turn"},
-        )
-    except Exception as e:  # API/네트워크/timeout
+        resp = httpx.post(f"{LLAMA_SERVER_URL}/v1/chat/completions", json=payload, timeout=120)
+        resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"]
+    except Exception as e:  # 연결/타임아웃/HTTP 에러
         raise LLMError(str(e)) from e
 
-    for block in resp.content:
-        if getattr(block, "type", None) == "tool_use" and block.name == "emit_turn":
-            try:
-                return TurnReply.model_validate(block.input)
-            except Exception as e:
-                raise LLMError(f"emit_turn input invalid: {e}") from e
-    raise LLMError("model did not call emit_turn")
+    try:  # json_schema 제약이 있어 이론상 드묾
+        return TurnReply.model_validate(json.loads(content))
+    except Exception as e:
+        raise LLMError(f"emit_turn output invalid: {e}") from e
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add app/llm/ tests/llm/
-git commit -m "Anthropic tool-use client — emit_turn schema + system cache_control (ADR 0027)"
+git commit -m "llama-server json_schema client — emit_turn schema + response_format (ADR 0027)"
 ```
 
 ---
@@ -1139,7 +1134,7 @@ Create `app/turn/__init__.py` (빈 파일) 와 `app/turn/loop.py`:
 ```python
 """turn loop — Sub-2 slice 의 오케스트레이션.
 
-build_prompt(Sub-1) → messages → llm_call(tool-use) → Layer 4 → clamp → persist.
+build_prompt(Sub-1) → messages → llm_call(json_schema) → Layer 4 → clamp → persist.
 llm_call 은 의존성 주입 (gate 테스트는 stub, 프로덕션은 app.llm.client.call).
 """
 
@@ -1227,7 +1222,7 @@ Expected: PASS — Sub-1 (prompt_builder) + Sub-2 gate 전부 green, live 마커
 
 ```bash
 git add app/turn/ tests/turn/
-git commit -m "turn loop — build_prompt→tool-use→Layer4→clamp→persist + band 전이 회귀"
+git commit -m "turn loop — build_prompt→json_schema→Layer4→clamp→persist + band 전이 회귀"
 ```
 
 ---
@@ -1346,32 +1341,41 @@ git commit -m "FastAPI POST /turn — session mint + run_turn 오케스트레이
 **Files:**
 - Create: `tests/live/__init__.py`, `tests/live/test_verbatim_eval.py`
 
-`-m live` 로만 실행. 실제 Claude 호출 → ADR 0023 verbatim invariant 측정.
+`-m live` 로만 실행. 실제 llama-server(Gemma 4) 호출 → ADR 0023 verbatim invariant 측정.
 
 - [ ] **Step 1: live eval 테스트 작성**
 
 Create `tests/live/__init__.py` (빈 파일) 와 `tests/live/test_verbatim_eval.py`:
 
 ```python
-"""Off-gate live eval — 실제 Anthropic API. `pytest -m live` 로만 실행.
+"""Off-gate live eval — 실제 llama-server (Gemma 4). `pytest -m live` 로만 실행.
 
 ADR 0023 invariant: NPC 발화가 sample_lines 를 verbatim 복사하는 비율이 임계 이하.
-실행: ANTHROPIC_API_KEY 설정 + docker compose up -d db 후
+실행: llama-server 기동 (API 키 불필요) + docker compose up -d db 후
       .venv/bin/pytest -m live -v
+
+llama-server 기동 예:
+  llama-server -m /Users/arden/gemma-4-26B/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf \
+    --host 127.0.0.1 --port 8080 --jinja -c 8192
 """
 
-import os
 import uuid
 
+import httpx
 import psycopg
 import pytest
 
-from app.config import DATABASE_URL
-from app.llm import client as llm_client
+from app.config import DATABASE_URL, LLAMA_SERVER_URL
 from app.prompt_builder.loader import load_npc, load_rules
 from app.prompt_builder.renderer import build_prompt, resolve_band
-from app.safety.output_validator import validate
 from app.store import db
+
+
+def _server_up() -> bool:
+    try:
+        return httpx.get(f"{LLAMA_SERVER_URL}/health", timeout=2).status_code == 200
+    except Exception:
+        return False
 
 # 대화당 verbatim 복사 허용 임계 (ADR 0023 invariant N). 첫 데이터로 Sub-2b 에서 재조정.
 VERBATIM_THRESHOLD = 1
@@ -1390,8 +1394,9 @@ PLAYER_LINES = [
 
 
 @pytest.mark.live
-@pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"), reason="ANTHROPIC_API_KEY 없음")
 def test_surigong_verbatim_copy_below_threshold():
+    if not _server_up():
+        pytest.skip("llama-server 미기동 — live eval 스킵")
     npc = load_npc("surigong")
     rules = load_rules()
     sid = str(uuid.uuid4())
@@ -1427,8 +1432,10 @@ Expected: PASS — `tests/live/` 는 `addopts = -m 'not live'` 로 collect 제�
 
 - [ ] **Step 3: (선택, 수동) live 실행 확인**
 
-Run (키 있을 때만): `ANTHROPIC_API_KEY=... .venv/bin/pytest -m live -v`
-Expected: PASS 또는 verbatim 임계 위반 시 FAIL (실제 모델 신호).
+먼저 llama-server 기동:
+`llama-server -m /Users/arden/gemma-4-26B/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf --host 127.0.0.1 --port 8080 --jinja -c 8192`
+그 다음: `.venv/bin/pytest -m live -v`
+Expected: PASS 또는 verbatim 임계 위반 시 FAIL (실제 모델 신호). 서버 미기동 시 skip.
 
 - [ ] **Step 4: Commit**
 
@@ -1597,8 +1604,8 @@ git commit -m "enforcement — NPC 대사 하드코딩 grep + mapping-spec PR �
 **Phase 1.0 Sub-2 (현재 — 수리공 vertical slice 도입됨):**
 - `scripts/check_no_hardcoded_dialogue.py` — `app/` 내 NPC 대사(sample_lines/diegetic_fallback) 하드코딩 금지. pre-commit/CI 연결.
 - `PULL_REQUEST_TEMPLATE.md` — mapping-spec 갱신 + ADR + check_yaml + 하드코딩 grep 체크리스트.
-- `app/api` + `app/turn` + `app/llm` + `app/store` + `app/safety` — 수리공 단독 `POST /turn` end-to-end (build_prompt → Claude tool-use → Layer 1/4 → clamp → Postgres). `docker compose up -d db` 후 `pytest`.
-- LLM 출력 회귀: gate = 결정적 validator + stub-client 통합, off-gate = `pytest -m live` (실제 Claude verbatim 임계, ADR 0023).
+- `app/api` + `app/turn` + `app/llm` + `app/store` + `app/safety` — 수리공 단독 `POST /turn` end-to-end (build_prompt → llama-server(Gemma 4) json_schema → Layer 1/4 → clamp → Postgres). `docker compose up -d db` 후 `pytest`.
+- LLM 출력 회귀: gate = 결정적 validator + stub `llm_call` 통합, off-gate = `pytest -m live` (실제 llama-server verbatim 임계, ADR 0023).
 - 시스템 프롬프트 누설 차단 = Layer 4 (`output_validator`). Layer 2(Moderation)+2.5(2-strike) 는 Sub-2b.
 
 **Phase 1.0 Sub-2b+ (추후):**
@@ -1625,8 +1632,9 @@ git commit -m "CLAUDE.md — Phase 1.0 Sub-2 enforcement 활성화 (수리공 sl
 - [ ] `python3 scripts/check_yaml.py` green.
 - [ ] `.venv/bin/python scripts/check_no_hardcoded_dialogue.py` exit 0.
 - [ ] (수동) 스키마 적용: `.venv/bin/python -c "from app.store import db; db.apply_migrations(db.connect())"` (fresh DB 1회).
-- [ ] (수동) `ANTHROPIC_API_KEY=... .venv/bin/uvicorn app.api.main:app` 기동 후 `curl -X POST localhost:8000/turn -H 'Content-Type: application/json' -d '{"npc_id":"surigong","player_input":"넌 항상 여기 있구나"}'` 가 reply+choices+session_uuid 반환.
-- [ ] (수동) `pytest -m live` 가 실제 Claude 로 verbatim 임계 통과.
+- [ ] (수동) llama-server 기동: `llama-server -m /Users/arden/gemma-4-26B/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf --host 127.0.0.1 --port 8080 --jinja -c 8192`.
+- [ ] (수동) `.venv/bin/uvicorn app.api.main:app` 기동 후 `curl -X POST localhost:8000/turn -H 'Content-Type: application/json' -d '{"npc_id":"surigong","player_input":"넌 항상 여기 있구나"}'` 가 reply+choices+session_uuid 반환.
+- [ ] (수동) `pytest -m live` 가 실제 llama-server(Gemma 4) 로 verbatim 임계 통과.
 - [ ] ADR 0027/0028 + mechanic-spec/mapping-spec 갱신 cross-link 작동.
 
 ## 핵심 회귀 (이 slice 가 증명하는 단 하나)
