@@ -7,12 +7,25 @@ dependencies = [
     "pydantic>=2",
     "jinja2",
     "pyyaml",
+    "fastapi",
+    "uvicorn",
+    "httpx",
+    "psycopg[binary]>=3.1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "live: 실제 llama-server 호출 (수동/nightly, gate 제외)",
+]
+addopts = "-m 'not live'"
+# repo 루트를 sys.path 에 — editable install 의 finder 는 app 만 매핑하므로
+# `from scripts...` import (enforcement 테스트) 위해 필요.
+pythonpath = ["."]
 
 [build-system]
 requires = ["setuptools>=64"]

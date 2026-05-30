@@ -62,11 +62,15 @@ YAML은 *기계 가독 spec*. 다음 룰:
 - pydantic v2 schema 가 yaml 의 *required field* 강제 (extra=forbid). 누락/오타/enum 위반 시 빌더 boot 실패 = yaml schema 충분성 검증.
 - 시스템 프롬프트는 **빌더가 `rules/prompt_skeleton.yaml` + NPC yaml 에서 생성**. 코드/스킬레톤에 NPC 대사 하드코딩 금지 (verbatim copy only).
 
-**Phase 1.0 Sub-2 (추후 — Sub-2 plan 진입 시 활성):**
-- "코드 내 NPC 대사 하드코딩 금지" pre-commit grep 룰.
-- `mapping-spec.md` PR 체크리스트 (PR_TEMPLATE.md 또는 CI 룰).
-- 시스템 프롬프트 누설 키워드 차단 (PRD Layer 4와 연결).
-- FastAPI + Postgres + 수리공 end-to-end + LLM 출력 회귀 테스트.
+**Phase 1.0 Sub-2 (현재 — 수리공 vertical slice 도입됨):**
+- `scripts/check_no_hardcoded_dialogue.py` — `app/` 내 NPC 대사(sample_lines/diegetic_fallback) 하드코딩 금지. pre-commit/CI 연결.
+- `PULL_REQUEST_TEMPLATE.md` — mapping-spec 갱신 + ADR + check_yaml + 하드코딩 grep 체크리스트.
+- `app/api` + `app/turn` + `app/llm` + `app/store` + `app/safety` — 수리공 단독 `POST /turn` end-to-end (build_prompt → llama-server(Gemma 4) json_schema → Layer 1/4 → clamp → Postgres). `docker compose up -d db` 후 `pytest`.
+- LLM 출력 회귀: gate = 결정적 validator + stub `llm_call` 통합, off-gate = `pytest -m live` (실제 llama-server verbatim 임계, ADR 0023).
+- 시스템 프롬프트 누설 차단 = Layer 4 (`output_validator`). Layer 2(Moderation)+2.5(2-strike) 는 Sub-2b.
+
+**Phase 1.0 Sub-2b+ (추후):**
+- FastAPI 프론트엔드/모바일, save-code/쿠키, Cloudflare/failover, running summary, 나머지 3 NPC, Layer 2 Moderation + 2-strike DB.
 
 ## Git 룰
 
