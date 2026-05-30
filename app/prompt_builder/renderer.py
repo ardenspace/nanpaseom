@@ -14,7 +14,7 @@ import warnings
 from jinja2 import Environment, StrictUndefined
 
 from app.prompt_builder.loader import load_npc, load_rules
-from app.prompt_builder.schemas import BandSpec
+from app.prompt_builder.schemas import BandSpec, RuntimeState
 
 
 def resolve_band(awareness: int, bands: list[BandSpec]) -> BandSpec:
@@ -41,7 +41,22 @@ def build_prompt(
     memory_tags: list[str],
     hooks_runtime: dict | None = None,
 ) -> str:
-    """Public API. yaml + runtime state → system prompt string."""
+    """Public API. yaml + runtime state → system prompt string.
+
+    입력은 RuntimeState 로 fail-fast 검증 (npc_name enum / awareness 0-100 int /
+    memory_tags list / hooks_runtime dict). 잘못된 타입·범위는 ValidationError.
+    """
+    state = RuntimeState(
+        npc_name=npc_name,
+        awareness=awareness,
+        memory_tags=memory_tags,
+        hooks_runtime=hooks_runtime or {},
+    )
+    npc_name = state.npc_name
+    awareness = state.awareness
+    memory_tags = state.memory_tags
+    hooks_runtime = state.hooks_runtime
+
     npc = load_npc(npc_name)
     rules = load_rules()
     band = resolve_band(awareness, rules.awareness_bands.bands)
@@ -66,7 +81,11 @@ def build_prompt(
             raise ValueError(f"missing hook variable: {missing}")
         extra = provided - required
         if extra:
-            warnings.warn(f"extra hooks_runtime keys (ignored): {extra}")
+            warnings.warn(
+                f"extra hooks_runtime keys (ignored): {extra}",
+                UserWarning,
+                stacklevel=2,
+            )
             hooks_runtime = {k: v for k, v in hooks_runtime.items() if k in required}
 
     env = Environment(

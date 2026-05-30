@@ -42,6 +42,31 @@ def test_resolve_band_out_of_range_raises(awareness):
 
 
 # -----------------------------------------------------------------------------
+# build_prompt 입력 fail-fast (RuntimeState 검증, code-review followup)
+# -----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("bad_awareness", [True, 70.5, -1, 150, "70"])
+def test_build_prompt_rejects_bad_awareness(bad_awareness):
+    """bool/float/str/범위밖 awareness → ValidationError (strict int)."""
+    with pytest.raises(Exception):
+        build_prompt(
+            npc_name="hyean",
+            awareness=bad_awareness,
+            memory_tags=["fear"],
+            hooks_runtime={},
+        )
+
+
+def test_build_prompt_rejects_unknown_npc():
+    """미정의 npc_name → ValidationError (FileNotFoundError 아님)."""
+    import pydantic
+
+    with pytest.raises(pydantic.ValidationError):
+        build_prompt(npc_name="nonexistent", awareness=70, memory_tags=[], hooks_runtime={})
+
+
+# -----------------------------------------------------------------------------
 # Snapshot — 4 cell verbatim (oracle 추출 .txt 와 정확히 일치)
 # -----------------------------------------------------------------------------
 

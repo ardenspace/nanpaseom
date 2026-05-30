@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class ForgottenLife(BaseModel):
     model_config = ConfigDict(extra="forbid")
     profession: str
-    core_wound: str  # memory_tags vocab 중 하나 (closed vocab cross-check 는 별도)
+    core_wound: str  # 관례상 memory_tags vocab 중 하나. Sub-1 은 cross-check 안 함 (Sub-2 후보).
     backstory_summary: str
     name_candidates: Optional[list[str]] = None  # 혜안 은 없음 (given)
     name_meaning_shift_template: Optional[str] = None  # 혜안 전용 (ADR 0015/0016)
@@ -172,6 +172,8 @@ class RulesData(BaseModel):
 class RuntimeState(BaseModel):
     model_config = ConfigDict(extra="forbid")
     npc_name: Literal["surigong", "eobu", "halmoni", "hyean"]
-    awareness: int = Field(ge=0, le=100)
+    # strict=True → bool/float/str coercion 거부. awareness 는 진짜 int 여야 함
+    # (bool True 가 1 로 조용히 통과하던 gap 차단, code-review followup).
+    awareness: int = Field(strict=True, ge=0, le=100)
     memory_tags: list[str]
     hooks_runtime: dict = Field(default_factory=dict)

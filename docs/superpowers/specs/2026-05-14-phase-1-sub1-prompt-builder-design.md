@@ -99,8 +99,7 @@ Phase 0 의 손-합성 검증 Round 2 가 `npcs/<name>.yaml` + `rules/*.yaml` �
 - Layer 3 메타-디펜스 always present
 - 현 band npc_tone verbatim 박힘
 - 현 band sample_lines verbatim 박힘 (각 line)
-- choice_count = band.choice_count
-- player_choice_tones = band.player_choice_tones
+- choice rule (`band.rule`) verbatim 박힘 — `band.rule` prose 가 choice_count 를 포섭 ("return EXACTLY N choices…"). 별도 numeric `choice_count:` 줄은 두지 않음 (승인된 4-cell oracle 에 없음). player_choice_tones 도 band 의 톤 정의로 박힘 (빈 band 85+ = "(없음 — 자유 입력)").
 - persona_intro verbatim 박힘
 - injected memory_tags ⊆ vocab
 
@@ -272,8 +271,8 @@ Snapshot regenerate: `pytest --snapshot-update` (디자이너 가 의도적으�
 - `assert layer3_meta_defense_marker in output` — 메타-디펜스 항상 존재
 - `assert npc.voice.awakening_bands[band_idx].npc_tone in output` — 현 band npc_tone verbatim
 - `assert all(line in output for line in npc.voice.awakening_bands[band_idx].sample_lines)` — sample_lines verbatim
-- `assert f"choice_count: {rules.bands[band_idx].choice_count}" in output` — choice rule
-- `assert npc.identity.system_prompt_persona_intro in output` — persona prose verbatim
+- `assert rules.awareness_bands.bands[band_idx].rule in output` — choice rule verbatim (rule prose 가 choice_count 포섭)
+- `assert npc.identity.system_prompt_persona_intro.strip() in output` — persona prose verbatim (yaml `|` trailing newline 은 builder 가 trim)
 - `assert all(tag in memory_tags_vocab for tag in injected_memory_tags)` — closed vocab
 
 ### Schema validation test
