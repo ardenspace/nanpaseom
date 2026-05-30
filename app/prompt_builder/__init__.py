@@ -8,5 +8,6 @@ Authority:
     - rules/prompt_skeleton.yaml (template + 메타-게임 instruction)
 """
 
-# build_prompt 은 renderer.py 가 구현 후 노출됨 (Task 19). 현재 는 placeholder.
+from app.prompt_builder.renderer import build_prompt
+
 __all__ = ["build_prompt"]
