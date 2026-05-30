@@ -1,0 +1,9 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: nanpaseom
+      POSTGRES_PASSWORD: nanpaseom
+      POSTGRES_DB: nanpaseom
+    ports:
+      - "5432:5432"
