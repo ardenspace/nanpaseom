@@ -55,11 +55,18 @@ YAML은 *기계 가독 spec*. 다음 룰:
 - `scripts/check_yaml.py` — 모든 yaml 파싱 OK. 위반 시 commit reject 권장 (pre-commit 훅은 디자이너 선택).
 - 이 CLAUDE.md 룰 — 사람을 위한 명시화. 빌드는 안 깨지지만 협업 흐름의 베이스라인.
 
-**Phase 1.0 (빌더 도입 시 추가):**
-- YAML 스키마 검증 (pydantic / jsonschema) — 빌더가 fail-fast.
+**Phase 1.0 Sub-1 (현재 — 빌더 도입됨):**
+- `scripts/check_yaml.py` — Phase 0 baseline 유지.
+- `app/prompt_builder/` — yaml + rules + runtime state → 시스템 프롬프트 string (offline pure function). `python -m app.prompt_builder --npc <name> --awareness <0-100>` 로 확인.
+- `pytest tests/prompt_builder/` — pydantic v2 schema fail-fast + 4-cell snapshot (verbatim oracle) + 16-cell property invariant.
+- pydantic v2 schema 가 yaml 의 *required field* 강제 (extra=forbid). 누락/오타/enum 위반 시 빌더 boot 실패 = yaml schema 충분성 검증.
+- 시스템 프롬프트는 **빌더가 `rules/prompt_skeleton.yaml` + NPC yaml 에서 생성**. 코드/스킬레톤에 NPC 대사 하드코딩 금지 (verbatim copy only).
+
+**Phase 1.0 Sub-2 (추후 — Sub-2 plan 진입 시 활성):**
 - "코드 내 NPC 대사 하드코딩 금지" pre-commit grep 룰.
 - `mapping-spec.md` PR 체크리스트 (PR_TEMPLATE.md 또는 CI 룰).
 - 시스템 프롬프트 누설 키워드 차단 (PRD Layer 4와 연결).
+- FastAPI + Postgres + 수리공 end-to-end + LLM 출력 회귀 테스트.
 
 ## Git 룰
 
