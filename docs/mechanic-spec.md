@@ -198,6 +198,12 @@ This gets locked in the Week 2 engine spike; cannot slip to a later phase becaus
 
 ## Error Handling and Diegetic Fallbacks
 
+> **Sub-2 갱신 (ADR 0027, 2026-05-30):** model tier = local Gemma 4 26B-A4B (llama-server, Approach C
+> Tier-1) + **`json_schema` 제약 디코딩** 채택으로 failure mode (1) JSON parse 는 near-dead
+> (GBNF 그래마가 schema 강제). diegetic fallback 은 *parse 실패가 아니라* llama-server 에러/timeout
+> + Layer 4 위반 전용으로 재정의. failure mode (2) timeout 의 failover tier chain 과 (3) Moderation 은
+> Sub-2b. 아래 원문(prompt-parse-retry)은 비-제약 디코딩 tier 재도입 시의 계약으로 보존.
+
 Three failure modes must never break the player's immersion:
 
 1. **JSON parse failure** — LLM returns malformed or partial JSON. Retry once with a stricter "return ONLY JSON, no prose" directive. If second attempt fails, emit the in-game fallback line *in the NPC's voice* and keep the conversation alive:

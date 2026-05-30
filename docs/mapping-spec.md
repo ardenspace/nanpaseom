@@ -46,5 +46,6 @@
 - Mac Mini / Cloudflare Tunnel 인프라
 - Mobile responsive layout
 - CC0 픽셀 아트 sourcing
+- 턴 출력 JSON 계약 (`json_schema` 제약 디코딩, `emit_turn`) — llama.cpp 구조화 출력, lore 무관 제작 결정 (ADR 0027)
 
 이들은 망각의 섬 lore와 무관한 *제작 결정*. mapping table은 *게임 안에서 플레이어가 경험하는 메커니즘*에 한정.
