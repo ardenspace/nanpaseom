@@ -69,8 +69,14 @@ YAML은 *기계 가독 spec*. 다음 룰:
 - LLM 출력 회귀: gate = 결정적 validator + stub `llm_call` 통합, off-gate = `pytest -m live` (실제 llama-server verbatim 임계, ADR 0023).
 - 시스템 프롬프트 누설 차단 = Layer 4 (`output_validator`). Layer 2(Moderation)+2.5(2-strike) 는 Sub-2b.
 
+**Phase 1.0 Sub-2b (현재 — 안전 모더레이션 슬라이스 도입됨):**
+- `app/safety/moderation` + `app/safety/strike` + `rules/safety.yaml` — 결정적 2-strike 성희롱/혐오 트랙 (디니리스트). 엔드포인트가 ban 게이트 → strike → run_turn 오케스트레이션.
+- 안전 데이터(디니리스트/페르소나공격/메시지)는 `rules/safety.yaml` — 튜닝은 코드 아닌 YAML.
+- `sessions` + `safety_events` 테이블 (ADR 0031). 전부 결정적 → 게이트 테스트 커버 (live 불필요).
+- ML 모더레이션은 v1.1 — `moderation.detect` 의 checker 확장점 (ADR 0030).
+
 **Phase 1.0 Sub-2b+ (추후):**
-- FastAPI 프론트엔드/모바일, save-code/쿠키, Cloudflare/failover, running summary, 나머지 3 NPC, Layer 2 Moderation + 2-strike DB.
+- ML 모더레이션 checker, save-code/쿠키, Cloudflare/failover, running summary, 나머지 3 NPC, FastAPI 프론트엔드/모바일.
 
 ## Git 룰
 
