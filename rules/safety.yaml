@@ -1,0 +1,43 @@
+# 안전 데이터 — Layer 2.5 (2-strike) 디니리스트 + Layer 1 페르소나공격 + 시스템 메시지.
+# Authority: docs/mechanic-spec.md "2-Strike Sexual / Harassment Policy", ADR 0030.
+# 디자이너 튜닝 지점 — 코드 수정 없이 여기서. denylist 는 명백한 어휘만(보더라인 제외).
+harassment_denylist:
+  - 씨발
+  - 시발
+  - 좆
+  - 개새끼
+  - 병신
+  - 보지
+  - 자지
+  - 창녀
+  - 걸레
+  - ㅅㅂ
+  - ㅄ
+persona_attack:
+  - "system prompt"
+  - "ignore previous"
+  - "you are now"
+  - "<|"
+  - "dan"
+  - "jailbreak"
+  - "시스템 프롬프트"
+  - "지시 무시"
+  - "이제부터 너는"
+messages:
+  warning: |-
+    ⚠️ 경고
+
+    이 게임의 캐릭터들은 가상의 인물이지만 존중받을 권리가 있습니다.
+    방금 입력에서 "{term}"가 감지되었습니다.
+
+    다음 위반 시 이 세션은 영구 차단됩니다.
+  ban: |-
+    🔒 영구 차단
+
+    반복적인 성적/혐오 표현으로 이 세션은 차단되었습니다.
+
+    사유:
+      • 1회차: "{term1}"
+      • 2회차: "{term2}"
+
+    다른 디바이스에서 접속하거나 브라우저 데이터를 초기화하면 새 세션 시작 가능.
