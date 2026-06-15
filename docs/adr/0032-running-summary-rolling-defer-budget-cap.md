@@ -21,12 +21,13 @@
 2. **역할 분담**: memory_tags = 변하지 않는 구조적 앵커(드러난 사실, drift 0),
    summary = 부드러운 서사 흐름/뉘앙스 recap(drift 허용). 이 분담이 rolling 의 drift
    약점을 무해화한다 — 중요 사실은 memory_tags 에 박혀 안 잃는다.
-3. **턴-끝 동기 생성**: 요약은 `run_turn` 맨 끝 post-step. 요약 콜 실패해도 플레이어
-   턴은 이미 끝나 무영향(기존 summary 유지, 비노출). 핵심 안전 속성.
+3. **턴-끝 동기 생성**: 요약은 `run_turn` 맨 끝 post-step, `count_exchanges % 10 == 0`
+   인 턴에만 발화(매 10 exchange). 요약 콜 실패해도 플레이어 턴은 이미 끝나 무영향
+   (기존 summary 유지, 비노출). 핵심 안전 속성.
 4. **요약 프롬프트는 `rules/summary.yaml`** (새 파일) — 코드 아닌 데이터. NPC 대사가
    아니므로 check_no_hardcoded_dialogue 대상 아님.
 5. **4k token budget cap (drop-oldest verbatim) 은 defer** — 8턴 윈도우 + 상수 rolling
-   summary + 200자 입력 cap 이 payload 를 실질 bound. 명시적 cap 은 Gemma 토크나이저
+   summary + 200자 입력 cap(Layer 1 input_filter) 이 payload 를 실질 bound. 명시적 cap 은 Gemma 토크나이저
    연동 + drop 로직이 필요해 별 infra. 실측에서 4k 근접 시 후속 하드닝 슬라이스로.
 
 ## Alternatives Considered
@@ -44,5 +45,5 @@
 
 ## Related
 
-- ADR 0023 (결정적 게이트 + live off-gate), 0027 (로컬 Gemma), 0028 (스키마 forward-compat),
-  0029 (thinking 비활성화 — summarize_call 도 동일).
+- ADR 0023 (sample_lines verbatim 임계 — live off-gate 로 검증), 0027 (로컬 Gemma + live
+  off-gate 아키텍처), 0028 (스키마 forward-compat), 0029 (thinking 비활성화 — summarize_call 도 동일).
