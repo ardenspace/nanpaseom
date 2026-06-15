@@ -12,7 +12,7 @@ def client(monkeypatch):
     # migration + truncate
     c = psycopg.connect(DATABASE_URL, autocommit=True)
     db.apply_migrations(c)
-    c.execute("TRUNCATE npc_state, chat_logs")
+    c.execute("TRUNCATE npc_state, chat_logs, sessions, safety_events")
     c.close()
 
     # 엔드포인트는 llm_call 을 명시 주입하지 않으므로 client.call 을 stub.
