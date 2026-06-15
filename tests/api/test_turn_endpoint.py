@@ -27,6 +27,8 @@ def client(monkeypatch):
         )
 
     monkeypatch.setattr(llm_client, "call", stub_call)
+    # 이 fixture 의 테스트는 1-2 턴만 돌려 running summary trigger(10 exchange) 에 도달하지
+    # 않으므로 summarize_call 은 stub 불필요. 10+ 턴 도는 API 테스트를 추가하면 여기도 stub 할 것.
     from app.api.main import app
     return TestClient(app)
 

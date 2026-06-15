@@ -15,7 +15,7 @@ Sub-2 가 "턴 루프가 닫힌다", Sub-2b 가 "자유 입력이 안전하게 �
 **In:**
 - `rules/summary.yaml` — 요약 system 프롬프트 템플릿 (코드 아닌 YAML — 레포 철학 일관).
 - `app/turn/summarizer.py` — `summarize(prior, exchanges, *, llm_call) -> str` 순수 오케스트레이션 (LLM 의존성 주입).
-- `app/store/repo.py` — `count_exchanges`, `load_turns_since`, `save_summary` 추가.
+- `app/store/repo.py` — `count_exchanges`, `save_summary` 추가. rolling delta 는 기존 `load_recent_turns(limit=20)` 재사용 (별도 `load_turns_since` 불필요 — 구현 시 단순화).
 - `app/prompt_builder/renderer.py` + `rules/prompt_skeleton.yaml` — `summary` 주입 슬롯.
 - `app/turn/loop.py` — ① `state.summary` 프롬프트 주입, ② 턴 끝 trigger 시 summarizer 호출.
 - ADR 0032 — rolling 전략 + 역할 분담 + 프롬프트 YAML 거주 + 동기 생성 + 4k cap defer.
@@ -57,7 +57,7 @@ NPC 프롬프트 빌드(`prompt_skeleton.yaml`) 와 책임이 다른 infra meta-
 - 1 **exchange** = player input(1) + NPC reply(1). 현재 `chat_logs` 는 exchange 당 turn_index 2개(ti, ti+1) 기록.
 - `count_exchanges` = 완료된 exchange 수 = `(MAX(turn_index)+1) / 2`.
 - **trigger: exchange 영속화 직후 `count % 10 == 0`** → summarize.
-- rolling delta `load_turns_since` = 직전 요약 이후의 exchanges (trigger 주기상 마지막 10 exchanges).
+- rolling delta = `load_recent_turns(limit=20)` 재사용 (직전 10 exchanges = 최근 20 chat row; trigger 가 정확히 10 주기라 별도 `load_turns_since` 불필요).
 - 첫 요약(10턴): `prior = None` → 입력은 exchanges 1–10.
 
 ## 데이터 흐름 (Data Flow)
@@ -69,7 +69,7 @@ run_turn(...)
   ├─ llm_call(system, messages) → Layer 4 → clamp → save_npc_state → _log_exchange
   └─ [POST-STEP, 신규] if count_exchanges % 10 == 0:
          prior = state.summary
-         delta = load_turns_since(...)
+         delta = load_recent_turns(limit=20)   # 직전 10 exchanges
          try: new = summarizer.summarize(prior, delta, llm_call=...)
               repo.save_summary(...)            # 성공 시에만 갱신
          except LLMError: pass                  # 기존 summary 유지, 턴은 이미 정상 반환
@@ -83,7 +83,7 @@ run_turn(...)
 |---|---|---|
 | `rules/summary.yaml` (신규) | 요약 system 프롬프트 템플릿 (데이터) | — |
 | `app/turn/summarizer.py` (신규) | `summarize(prior, exchanges, *, llm_call) -> str` | summary.yaml, llm_call(주입) |
-| `app/store/repo.py` (수정) | `count_exchanges` / `load_turns_since` / `save_summary` | chat_logs, npc_state |
+| `app/store/repo.py` (수정) | `count_exchanges` / `save_summary` (+rolling delta 는 `load_recent_turns` 재사용) | chat_logs, npc_state |
 | `app/prompt_builder/renderer.py` (수정) | `build_prompt(..., summary)` 주입 | prompt_skeleton.yaml |
 | `rules/prompt_skeleton.yaml` (수정) | summary 주입 슬롯 (memory_tags 인근) | — |
 | `app/turn/loop.py` (수정) | summary 주입 + 턴-끝 trigger | summarizer, repo, renderer |
