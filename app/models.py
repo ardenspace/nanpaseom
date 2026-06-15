@@ -1,6 +1,6 @@
 """Sub-2 도메인 모델. LLM 구조화 출력 + 영속 상태 + 엔드포인트 응답."""
 
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -29,8 +29,23 @@ class NpcState(BaseModel):
 
 
 class TurnResponse(BaseModel):
-    """`POST /turn` 응답. awareness 정수는 노출 안 함 (mechanic-spec: 숫자 비노출)."""
+    """`POST /turn` 응답. awareness 정수는 노출 안 함 (mechanic-spec: 숫자 비노출).
+
+    kind 판별자 (ADR 0031): "npc" = NPC 대사, "warning"/"ban" = 프레임 깨는 시스템 메시지.
+    reply 는 kind 에 따라 NPC 대사 또는 시스템 메시지 텍스트.
+    """
     model_config = ConfigDict(extra="forbid")
+    kind: Literal["npc", "warning", "ban"] = "npc"
     reply: str
-    choices: list[Choice]
+    choices: list[Choice] = []
     session_uuid: str
+    matched_term: Optional[str] = None
+
+
+class SessionState(BaseModel):
+    """sessions 행의 검증된 형태 (ADR 0031)."""
+    model_config = ConfigDict(extra="forbid")
+    warning_count: int
+    first_strike_term: Optional[str]
+    banned: bool
+    ban_reason: Optional[str]

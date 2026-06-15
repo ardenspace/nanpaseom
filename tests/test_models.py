@@ -36,3 +36,23 @@ def test_npc_state_defaults():
 def test_turn_response_shape():
     resp = TurnResponse(reply="hi", choices=[Choice(tone="t", text="x")], session_uuid="u")
     assert resp.session_uuid == "u"
+
+
+def test_turn_response_defaults_to_npc_kind():
+    from app.models import TurnResponse
+    resp = TurnResponse(reply="hi", choices=[], session_uuid="u")
+    assert resp.kind == "npc"
+    assert resp.matched_term is None
+
+
+def test_turn_response_warning_kind():
+    from app.models import TurnResponse
+    resp = TurnResponse(kind="warning", reply="경고", choices=[], session_uuid="u", matched_term="씨발")
+    assert resp.kind == "warning"
+    assert resp.matched_term == "씨발"
+
+
+def test_session_state_defaults():
+    from app.models import SessionState
+    s = SessionState(warning_count=0, first_strike_term=None, banned=False, ban_reason=None)
+    assert s.banned is False
