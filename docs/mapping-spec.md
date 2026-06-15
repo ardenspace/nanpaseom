@@ -48,5 +48,6 @@
 - CC0 픽셀 아트 sourcing
 - 턴 출력 JSON 계약 (`json_schema` 제약 디코딩, `emit_turn`) — llama.cpp 구조화 출력, lore 무관 제작 결정 (ADR 0027)
 - thinking 모델 reasoning 비활성화 (`chat_template_kwargs.enable_thinking=false`) — gemma-4/qwen3 추론 토큰이 `content` 를 비우는 것 차단, lore 무관 디코딩 결정 (ADR 0029)
+- 안전 영속 스키마 (`sessions`/`safety_events`) + 응답 `kind` 판별자 — lore 무관 제작 결정 (ADR 0031)
 
 이들은 망각의 섬 lore와 무관한 *제작 결정*. mapping table은 *게임 안에서 플레이어가 경험하는 메커니즘*에 한정.

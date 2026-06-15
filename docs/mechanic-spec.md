@@ -479,6 +479,8 @@ The cost of this ordering: the engine + context-mgmt + safety + error handling a
 
 ### 2-Strike Sexual / Harassment Policy (Layer 2.5)
 
+> **Sub-2b 갱신 (ADR 0030, 2026-06-15):** 이 슬라이스의 감지 = (a) 디니리스트(local, 결정적)만. (b) OpenAI Moderation 카테고리(ML)는 v1.1 로 디퍼 (로컬-온리 stance ADR 0027, 맥미니 단일 GPU 모델 제약). category 는 디니리스트 hit 시 전부 "harassment" 로 합침 — sexual/혐오 세분화는 ML 과 함께. save-code 무효화는 save-code 구현(Sub-2b+) 전까지 N/A, ban 은 session_uuid 스코프.
+
 **디자이너의 윤리 stance를 시스템으로 박는 일.** 4 NPC가 모두 여성 + 공개 URL portfolio 맥락에서 단순 안전 기능이 아닌 *LLM-제품 sensibility 시그널*.
 
 **의도적 frame-breaking.** 다른 모든 에러는 NPC 목소리로 흡수했지만 (어부 "허, 이놈의 귀가…"), 성희롱/혐오는 시스템 메시지로 frame 바깥에서 응답. 페르소나로 받아넘기면 *공격이 게임 메커니즘으로 흡수*되는 잘못된 신호.
