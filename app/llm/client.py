@@ -42,3 +42,26 @@ def call(system: str, messages: list[dict]) -> TurnReply:
         return TurnReply.model_validate(json.loads(content))
     except Exception as e:
         raise LLMError(f"emit_turn output invalid: {e}") from e
+
+
+def summarize_call(system: str, user: str) -> str:
+    """평문 completion (json_schema 없음) — running summary 용. 실패 = LLMError.
+
+    dialogue 와 동일 tier/서버 (ADR 0027/0032). ADR 0029: thinking 비활성화.
+    """
+    payload = {
+        "model": MODEL,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "temperature": 0.3,  # 요약은 낮은 변동
+        "max_tokens": 400,   # ≤300토큰 목표 + 여유
+        "chat_template_kwargs": {"enable_thinking": False},
+    }
+    try:
+        resp = httpx.post(f"{LLAMA_SERVER_URL}/v1/chat/completions", json=payload, timeout=120)
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        raise LLMError(str(e)) from e
