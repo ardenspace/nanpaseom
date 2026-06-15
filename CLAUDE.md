@@ -75,8 +75,13 @@ YAML은 *기계 가독 spec*. 다음 룰:
 - `sessions` + `safety_events` 테이블 (ADR 0031). 전부 결정적 → 게이트 테스트 커버 (live 불필요).
 - ML 모더레이션은 v1.1 — `moderation.detect` 의 checker 확장점 (ADR 0030).
 
+**Phase 1.0 Sub-2c (현재 — running summary 도입됨):**
+- `app/turn/summarizer` + `rules/summary.yaml` — 10 exchange 마다 rolling 요약(이전 summary + 직전 10 exchange) → `npc_state.summary`, 이후 매 턴 프롬프트 주입. 컨텍스트 윈도우 3요소(8턴 verbatim + memory_tags + summary) 완성.
+- 요약은 `run_turn` 턴-끝 동기 post-step — **실패해도 대화 무영향**(기존 summary 유지). 요약 프롬프트는 `rules/summary.yaml`(튜닝은 YAML).
+- 4k budget cap(drop-oldest)은 defer (ADR 0032). 게이트=결정적(summarize_call stub), off-gate=`pytest -m live`.
+
 **Phase 1.0 Sub-2b+ (추후):**
-- ML 모더레이션 checker, save-code/쿠키, Cloudflare/failover, running summary, 나머지 3 NPC, FastAPI 프론트엔드/모바일.
+- ML 모더레이션 checker, save-code/쿠키, Cloudflare/failover, 4k budget cap 하드닝, 나머지 3 NPC, FastAPI 프론트엔드/모바일.
 
 ## Git 룰
 
