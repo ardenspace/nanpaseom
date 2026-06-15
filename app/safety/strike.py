@@ -25,6 +25,9 @@ def register(conn, session_uuid: str, verdict: SafetyVerdict) -> StrikeResult:
     term = verdict.matched_term or ""
 
     repo.ensure_session(conn, session_uuid)
+    # NOTE: read-modify-write 가 autocommit 하 비원자적 — 동일 session_uuid 동시 요청 시
+    # warning_count 경쟁 가능 (2-strike 가 약화). ban 이 세션 스코프 soft-ban 이라 슬라이스 범위엔
+    # 수용. ban 하드닝(행 잠금/원자적 UPDATE) 은 v1.1 (IP 차단과 함께).
     repo.append_safety_event(conn, session_uuid, verdict.category, term)
     sess = repo.load_session(conn, session_uuid)
 

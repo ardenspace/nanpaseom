@@ -21,7 +21,7 @@ Checker = Callable[[str], SafetyVerdict]
 
 
 def _normalize(text: str) -> str:
-    """공백 제거(음운변형 "씨 발" 캐치) + 소문자."""
+    """공백 제거(음운변형 "씨 발" 캐치) + 소문자. 반복 자모/문장부호 삽입 변형 정규화는 v1.1."""
     return re.sub(r"\s+", "", text).lower()
 
 

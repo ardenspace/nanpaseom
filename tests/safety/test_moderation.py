@@ -34,3 +34,12 @@ def test_checker_order_first_nonclean_wins():
 def test_empty_after_normalize_is_clean():
     v = detect("   ", [_checker()])
     assert v.category == "clean"
+
+
+def test_second_checker_consulted_when_first_clean():
+    # 확장점 계약: 첫 checker 가 clean 이면 다음 checker 가 호출된다 (v1.1 ml_checker).
+    clean = denylist_checker(["없는단어"])
+    hit = denylist_checker(["씨발"])
+    v = detect("이 씨발", [clean, hit])
+    assert v.category == "harassment"
+    assert v.matched_term == "씨발"
