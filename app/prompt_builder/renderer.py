@@ -40,6 +40,7 @@ def build_prompt(
     awareness: int,
     memory_tags: list[str],
     hooks_runtime: dict | None = None,
+    summary: str | None = None,
 ) -> str:
     """Public API. yaml + runtime state → system prompt string.
 
@@ -50,11 +51,13 @@ def build_prompt(
         npc_name=npc_name,
         awareness=awareness,
         memory_tags=memory_tags,
+        summary=summary,
         hooks_runtime=hooks_runtime or {},
     )
     npc_name = state.npc_name
     awareness = state.awareness
     memory_tags = state.memory_tags
+    summary = state.summary
     hooks_runtime = state.hooks_runtime
 
     npc = load_npc(npc_name)
@@ -102,5 +105,6 @@ def build_prompt(
         band_npc=band_npc,
         awareness=awareness,
         memory_tags=memory_tags,
+        summary=summary,
         hooks_runtime=hooks_runtime,
     )

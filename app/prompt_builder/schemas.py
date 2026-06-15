@@ -176,4 +176,5 @@ class RuntimeState(BaseModel):
     # (bool True 가 1 로 조용히 통과하던 gap 차단, code-review followup).
     awareness: int = Field(strict=True, ge=0, le=100)
     memory_tags: list[str]
+    summary: Optional[str] = None
     hooks_runtime: dict = Field(default_factory=dict)
