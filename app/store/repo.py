@@ -117,3 +117,22 @@ def append_safety_event(conn, session_uuid: str, category: str, matched_term: st
         "INSERT INTO safety_events (session_uuid, category, matched_term) VALUES (%s, %s, %s)",
         (session_uuid, category, matched_term),
     )
+
+
+def count_exchanges(conn, session_uuid: str, npc_id: str) -> int:
+    """완료된 exchange 수. 1 exchange = user+assistant 2행 → (MAX(turn_index)+1)//2."""
+    row = conn.execute(
+        "SELECT (COALESCE(MAX(turn_index), -1) + 1) / 2 FROM chat_logs "
+        "WHERE session_uuid = %s AND npc_id = %s",
+        (session_uuid, npc_id),
+    ).fetchone()
+    return int(row[0])
+
+
+def save_summary(conn, session_uuid: str, npc_id: str, summary: str) -> None:
+    """npc_state.summary 갱신 (행은 save_npc_state 후 존재 가정)."""
+    conn.execute(
+        "UPDATE npc_state SET summary = %s, updated_at = now() "
+        "WHERE session_uuid = %s AND npc_id = %s",
+        (summary, session_uuid, npc_id),
+    )
