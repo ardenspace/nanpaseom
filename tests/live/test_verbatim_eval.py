@@ -29,6 +29,10 @@ def _server_up() -> bool:
 
 # 대화당 verbatim 복사 허용 임계 (ADR 0023 invariant N). 첫 데이터로 Sub-2b 에서 재조정.
 VERBATIM_THRESHOLD = 1
+# diegetic fallback 허용 임계. 건강한 모델은 거의 fallback 하지 않는다. 이 가드가 없으면
+# 매 턴 fallback (예: thinking 모델이 content 를 비우는 ADR 0029 버그) 이 verbatim=0 으로
+# 둔갑해 테스트가 trivial 하게 통과한다 (실제로는 게임이 한 번도 작동하지 않음).
+MAX_FALLBACKS = 1
 TURNS = 8
 
 PLAYER_LINES = [
@@ -58,9 +62,13 @@ def test_surigong_verbatim_copy_below_threshold():
     # turn loop 을 직접 돌리지 않고, system+messages 를 구성해 실제 호출 — eval 단순화.
     from app.turn.loop import run_turn
 
+    fallback_line = npc.diegetic_fallback.strip()
     verbatim_hits = 0
+    fallback_hits = 0
     for line in PLAYER_LINES[:TURNS]:
         resp = run_turn(conn, sid, "surigong", line)  # 실제 client.call
+        if resp.reply.strip() == fallback_line:
+            fallback_hits += 1
         # 현재 band 의 sample_lines 로 검증.
         state_aw = conn.execute(
             "SELECT awareness FROM npc_state WHERE session_uuid=%s AND npc_id=%s", (sid, "surigong")
@@ -72,4 +80,9 @@ def test_surigong_verbatim_copy_below_threshold():
             verbatim_hits += 1
 
     conn.close()
+    # 계약이 실제로 닫히는지 먼저 — 매 턴 fallback 이면 모델이 한 번도 답을 못 낸 것.
+    assert fallback_hits <= MAX_FALLBACKS, (
+        f"diegetic fallback {fallback_hits}/{TURNS}회 > 임계 {MAX_FALLBACKS} — "
+        f"모델이 계약(turn JSON)을 못 채움 (thinking 모델 content 비움 등, ADR 0029)"
+    )
     assert verbatim_hits <= VERBATIM_THRESHOLD, f"verbatim 복사 {verbatim_hits}회 > 임계 {VERBATIM_THRESHOLD}"
