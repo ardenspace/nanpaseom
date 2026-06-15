@@ -10,9 +10,23 @@ from app.prompt_builder.loader import load_npc, load_rules
 from app.prompt_builder.renderer import build_prompt, resolve_band
 from app.safety import input_filter, output_validator
 from app.store import repo
+from app.turn import summarizer
 
 # 낚시/루비 economy 는 out-of-scope (spec edge case) — build_prompt 필수 hook 을 0 으로 stub.
 RUBY_HOOK_STUB = {"player_total_rubies_given_to_this_npc": 0}
+SUMMARIZE_EVERY = 10  # exchanges (mechanic-spec "Context Window Management")
+
+
+def _maybe_summarize(conn, sid, npc_id, prior_summary, summarize_call) -> None:
+    """10 exchange 마다 rolling 요약. 실패해도 turn 무영향 (기존 summary 유지). ADR 0032."""
+    if repo.count_exchanges(conn, sid, npc_id) % SUMMARIZE_EVERY != 0:
+        return
+    delta = repo.load_recent_turns(conn, sid, npc_id, limit=SUMMARIZE_EVERY * 2)
+    try:
+        new_summary = summarizer.summarize(prior_summary, delta, llm_call=summarize_call)
+    except llm_client.LLMError:
+        return  # 기존 summary 유지 — 대화 무영향
+    repo.save_summary(conn, sid, npc_id, new_summary)
 
 
 def merge_memory_tags(existing: list[str], new: list[str], vocab: list[str], max_per_turn: int = 3) -> list[str]:
@@ -31,9 +45,11 @@ def _log_exchange(conn, sid, npc_id, player_input, npc_reply, reply_raw):
     repo.append_chat_log(conn, sid, npc_id, ti + 1, "assistant", npc_reply, reply_raw)
 
 
-def run_turn(conn, session_uuid: str, npc_id: str, player_input: str, *, llm_call=None) -> TurnResponse:
+def run_turn(conn, session_uuid: str, npc_id: str, player_input: str, *, llm_call=None, summarize_call=None) -> TurnResponse:
     if llm_call is None:
         llm_call = llm_client.call
+    if summarize_call is None:
+        summarize_call = llm_client.summarize_call
 
     npc = load_npc(npc_id)
     rules = load_rules()
@@ -48,7 +64,7 @@ def run_turn(conn, session_uuid: str, npc_id: str, player_input: str, *, llm_cal
     band_npc = next(b for b in npc.voice.awakening_bands if b.range == band.range)
     window = repo.load_recent_turns(conn, session_uuid, npc_id, limit=8)
 
-    system = build_prompt(npc_id, state.awareness, state.memory_tags, RUBY_HOOK_STUB)
+    system = build_prompt(npc_id, state.awareness, state.memory_tags, RUBY_HOOK_STUB, summary=state.summary)
     messages = window + [{"role": "user", "content": player_input}]
 
     # LLM 호출 — API/timeout 에러는 diegetic fallback (turn_index 진행, awareness 불변).
@@ -70,5 +86,6 @@ def run_turn(conn, session_uuid: str, npc_id: str, player_input: str, *, llm_cal
     new_tags = merge_memory_tags(state.memory_tags, reply.memory_tags, rules.memory_tags.vocabulary)
     repo.save_npc_state(conn, session_uuid, npc_id, new_awareness, new_tags)
     _log_exchange(conn, session_uuid, npc_id, player_input, reply.reply, reply.model_dump())
+    _maybe_summarize(conn, session_uuid, npc_id, state.summary, summarize_call)
 
     return TurnResponse(reply=reply.reply, choices=reply.choices, session_uuid=session_uuid)
