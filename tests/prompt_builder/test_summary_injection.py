@@ -15,7 +15,9 @@ def test_summary_present_is_injected():
     assert "기억 요약" in out
 
 
-def test_summary_present_adds_lines_over_none():
-    none_out = build_prompt("surigong", 10, [], RUBY_HOOK_STUB, summary=None)
-    sum_out = build_prompt("surigong", 10, [], RUBY_HOOK_STUB, summary="- x")
-    assert len(sum_out) > len(none_out)
+def test_summary_non_str_rejected():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        build_prompt("surigong", 10, [], RUBY_HOOK_STUB, summary=123)

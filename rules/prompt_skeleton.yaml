@@ -19,6 +19,7 @@ template: |
   (none)
   {% endif %}
   {% if summary %}
+
   [NPC 기억 요약]
   {{ summary }}
   {% endif %}
