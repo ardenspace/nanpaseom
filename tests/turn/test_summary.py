@@ -77,6 +77,21 @@ def test_summary_failure_keeps_old_and_turn_succeeds(conn):
     assert repo.load_npc_state(conn, sid, "surigong").summary is None  # 갱신 안 됨
 
 
+def test_summary_db_failure_does_not_break_turn(conn, monkeypatch):
+    sid = str(uuid.uuid4())
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("db down")
+
+    # save_summary 가 DB 에러를 던져도 (best-effort post-step) 턴은 정상 반환.
+    monkeypatch.setattr("app.turn.loop.repo.save_summary", boom)
+
+    resp = None
+    for i in range(10):
+        resp = run_turn(conn, sid, "surigong", f"x{i}", llm_call=_llm, summarize_call=lambda s, u: "- ok")
+    assert resp.reply  # 턴 정상 반환 — DB 에러가 흡수됨
+
+
 def test_rolling_passes_prior_summary_on_20th(conn):
     sid = str(uuid.uuid4())
     seen = []

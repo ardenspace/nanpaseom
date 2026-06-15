@@ -18,15 +18,18 @@ SUMMARIZE_EVERY = 10  # exchanges (mechanic-spec "Context Window Management")
 
 
 def _maybe_summarize(conn, sid, npc_id, prior_summary, summarize_call) -> None:
-    """10 exchange 마다 rolling 요약. 실패해도 turn 무영향 (기존 summary 유지). ADR 0032."""
-    if repo.count_exchanges(conn, sid, npc_id) % SUMMARIZE_EVERY != 0:
-        return
-    delta = repo.load_recent_turns(conn, sid, npc_id, limit=SUMMARIZE_EVERY * 2)
+    """10 exchange 마다 rolling 요약. best-effort post-step — 어떤 실패도(LLM·DB 등)
+    turn 무영향 (요약은 turn 영속화 이후 실행, ADR 0032). 실패 시 기존 summary 유지."""
     try:
+        count = repo.count_exchanges(conn, sid, npc_id)
+        if count == 0 or count % SUMMARIZE_EVERY != 0:
+            return
+        # 2x: 직전 10 exchange = 최근 20 chat row (rolling delta)
+        delta = repo.load_recent_turns(conn, sid, npc_id, limit=SUMMARIZE_EVERY * 2)
         new_summary = summarizer.summarize(prior_summary, delta, llm_call=summarize_call)
-    except llm_client.LLMError:
+        repo.save_summary(conn, sid, npc_id, new_summary)
+    except Exception:
         return  # 기존 summary 유지 — 대화 무영향
-    repo.save_summary(conn, sid, npc_id, new_summary)
 
 
 def merge_memory_tags(existing: list[str], new: list[str], vocab: list[str], max_per_turn: int = 3) -> list[str]:
