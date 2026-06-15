@@ -27,6 +27,9 @@ def call(system: str, messages: list[dict]) -> TurnReply:
         },
         "temperature": 0.7,  # mechanic-spec: 약간의 자연 변동 허용
         "max_tokens": 1024,
+        # ADR 0029: gemma-4 / qwen3 는 thinking 모델 — thinking 을 끄지 않으면 reasoning 으로
+        # 토큰 예산을 소진하고 content 를 비운 채 끝나 매 턴 diegetic fallback 한다.
+        "chat_template_kwargs": {"enable_thinking": False},
     }
     try:
         resp = httpx.post(f"{LLAMA_SERVER_URL}/v1/chat/completions", json=payload, timeout=120)
