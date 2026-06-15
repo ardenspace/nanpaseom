@@ -3,7 +3,7 @@
 import json
 import uuid
 
-from app.models import NpcState
+from app.models import NpcState, SessionState
 
 
 def mint_session(conn) -> str:
@@ -71,4 +71,49 @@ def append_chat_log(
             content,
             json.dumps(reply_json_raw) if reply_json_raw is not None else None,
         ),
+    )
+
+
+def ensure_session(conn, session_uuid: str) -> None:
+    """sessions row 가 없으면 생성 (있으면 무시)."""
+    conn.execute(
+        "INSERT INTO sessions (session_uuid) VALUES (%s) ON CONFLICT (session_uuid) DO NOTHING",
+        (session_uuid,),
+    )
+
+
+def load_session(conn, session_uuid: str) -> SessionState:
+    row = conn.execute(
+        "SELECT warning_count, first_strike_term, banned_at, ban_reason FROM sessions "
+        "WHERE session_uuid = %s",
+        (session_uuid,),
+    ).fetchone()
+    if row is None:
+        return SessionState(warning_count=0, first_strike_term=None, banned=False, ban_reason=None)
+    return SessionState(
+        warning_count=row[0],
+        first_strike_term=row[1],
+        banned=row[2] is not None,
+        ban_reason=row[3],
+    )
+
+
+def set_warning(conn, session_uuid: str, warning_count: int, first_strike_term: str) -> None:
+    conn.execute(
+        "UPDATE sessions SET warning_count = %s, first_strike_term = %s WHERE session_uuid = %s",
+        (warning_count, first_strike_term, session_uuid),
+    )
+
+
+def ban_session(conn, session_uuid: str, ban_reason: str) -> None:
+    conn.execute(
+        "UPDATE sessions SET banned_at = now(), ban_reason = %s WHERE session_uuid = %s",
+        (ban_reason, session_uuid),
+    )
+
+
+def append_safety_event(conn, session_uuid: str, category: str, matched_term: str | None) -> None:
+    conn.execute(
+        "INSERT INTO safety_events (session_uuid, category, matched_term) VALUES (%s, %s, %s)",
+        (session_uuid, category, matched_term),
     )

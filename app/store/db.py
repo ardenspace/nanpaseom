@@ -6,7 +6,7 @@ import psycopg
 
 from app.config import DATABASE_URL
 
-MIGRATION = Path(__file__).resolve().parents[2] / "migrations" / "001_init.sql"
+MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
 
 
 def connect():
@@ -15,4 +15,6 @@ def connect():
 
 
 def apply_migrations(conn) -> None:
-    conn.execute(MIGRATION.read_text())
+    """migrations/*.sql 을 파일명 순서대로 적용 (001, 002, ...). 전부 idempotent (IF NOT EXISTS)."""
+    for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
+        conn.execute(path.read_text())
