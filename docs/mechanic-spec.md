@@ -194,6 +194,11 @@ Strategy:
 - **Budget cap:** per-turn request hard-capped at 4k tokens (system prompt + tone palette + guideline table + memory tags + summary + 8-turn window + current player input). If projected over budget, oldest verbatim turns drop first (never the summary, never the memory tags).
 - **Summarization call model:** same tier as dialogue (to avoid extra infra). Summary call is gated on turn_count % 10 == 0, not every turn. Expected extra cost is ~2% of dialogue turns.
 
+> **Sub-2c 갱신 (ADR 0032, 2026-06-15):** running summary 구현됨 — rolling 전략(이전 summary
+> + 직전 10 exchange), 턴-끝 동기 생성, 실패 시 기존 summary 유지(대화 무영향). 요약 프롬프트는
+> `rules/summary.yaml`. **4k budget cap(drop-oldest)은 defer** — 8턴 윈도우 + 상수 rolling
+> summary + 200자 입력 cap 이 payload 를 실질 bound. 실측에서 4k 근접 시 후속 하드닝.
+
 This gets locked in the Week 2 engine spike; cannot slip to a later phase because downstream NPC content authoring depends on it.
 
 ## Error Handling and Diegetic Fallbacks
