@@ -50,10 +50,11 @@ export const SAVE_CODE_BANNED_NOTE =
 /** 대체 확인 다이얼로그 — 제목. */
 export const REPLACE_CONFIRM_TITLE = "진행 대체 확인";
 
-/** 대체 확인 다이얼로그 — 본문. localStorage 힌트 기반이라 단정하지 않되,
+/** 대체 확인 다이얼로그 — 본문. 항상 표시 (쿠키는 HttpOnly 라 클라이언트가
+ *  세션 유무를 알 수 없음). 조건부 어법으로 새 기기에서도 정직하되,
  *  "이 기기의 진행이 대체됩니다" 취지는 분명히 (spec 고정 사항). */
 export const REPLACE_CONFIRM_BODY =
-  "세이브 코드를 불러오면 이 기기의 진행이 코드의 세션으로 대체됩니다. 계속할까요?";
+  "이 기기에 남아 있는 진행이 있다면, 세이브 코드를 불러올 때 코드의 세션으로 대체됩니다. 계속할까요?";
 
 /** 대체 확인 다이얼로그 — 진행(대체) 버튼. */
 export const REPLACE_CONFIRM_OK = "대체하고 이어하기";

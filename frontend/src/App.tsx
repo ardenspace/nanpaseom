@@ -176,12 +176,9 @@ export default function App() {
   function submitCode(e: React.FormEvent) {
     e.preventDefault();
     if (busy || codeDraft.trim().length === 0) return;
-    // 플레이 이력 힌트가 있으면 대체 확인 먼저 (쿠키는 못 읽으니 힌트 휴리스틱).
-    if (readPlayedHint()) {
-      setConfirmOpen(true);
-    } else {
-      void redeemCode();
-    }
+    // 대체 확인은 무조건 — HttpOnly 쿠키는 클라이언트가 못 읽고 localStorage
+    // 힌트보다 오래 살 수 있어, 힌트 게이팅은 조용한 세션 상실을 못 막는다.
+    setConfirmOpen(true);
   }
 
   function closeCodeEntry() {
