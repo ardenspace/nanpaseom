@@ -135,7 +135,7 @@ button:disabled {
 
 .title__error {
   color: var(--color-system-error);
-  animation: rise-in 300ms ease-out;
+  animation: rise-in var(--dur-rise-fast) ease-out;
 }
 
 /* 재방문 힌트 안내 — 침묵한 시스템 톤 (강조 아님, 라벨 보조). */
@@ -461,7 +461,7 @@ button:disabled {
   color: var(--color-system-error);
   text-align: center;
   white-space: pre-wrap;
-  animation: rise-in 300ms ease-out;
+  animation: rise-in var(--dur-rise-fast) ease-out;
 }
 
 /* ---------- 차단 화면 ---------- */
