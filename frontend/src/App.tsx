@@ -4,6 +4,8 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { postJson } from "./api";
+import { markPlayedHint, readPlayedHint } from "./playedHint";
+import type { BootstrapData, Choice, TurnData } from "./protocol";
 import {
   BANNED_TITLE,
   CONNECTING,
@@ -18,26 +20,6 @@ import {
   START_BUTTON,
 } from "./tone";
 
-type Choice = { tone: string; text: string };
-
-// 서버 응답 shape (B2 bootstrap / B1 turn) — 분기는 status/kind 로.
-type BootstrapData = {
-  status: string;
-  session_uuid?: string;
-  npc_id?: string;
-  reply?: string;
-  choices?: Choice[];
-  history?: { role: string; content: string }[];
-  ban_reason?: string;
-  message?: string;
-};
-
-type TurnData = {
-  kind: string;
-  reply?: string;
-  choices?: Choice[];
-};
-
 // warning/error 는 프레임 깨는 시스템 블록 — NPC 말풍선과 시각적으로 분리 렌더.
 // past = 재방문 복원된 지난 대화 (히스토리 prefix 에만 붙는다) — 흐리게 렌더.
 type Msg = {
@@ -50,26 +32,6 @@ type Screen = "title" | "chat" | "banned";
 
 // 클라이언트측 여유 상한 — 실제 제한은 서버(Layer 1)가 소유.
 const MAX_INPUT_LEN = 500;
-
-// 재방문 *힌트* — 신원 권한은 어디까지나 서버 쿠키. localStorage 는
-// 타이틀 버튼 라벨/카피만 바꾼다 (bootstrap 결과가 항상 진실).
-const PLAYED_HINT_KEY = "nanpaseom.played";
-
-function readPlayedHint(): boolean {
-  try {
-    return localStorage.getItem(PLAYED_HINT_KEY) === "1";
-  } catch {
-    return false; // 프라이버시 모드 등 — 힌트 없음으로 취급.
-  }
-}
-
-function markPlayedHint() {
-  try {
-    localStorage.setItem(PLAYED_HINT_KEY, "1");
-  } catch {
-    // 힌트 저장 실패는 무해 — 다음 방문에 [시작하기] 로 보일 뿐.
-  }
-}
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("title");

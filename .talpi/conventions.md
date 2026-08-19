@@ -68,6 +68,9 @@ conftest. 게이트 221 passed.)
   신원은 쿠키), [이어하기] 분기 + 안내 캡션, past 말풍선 dim + "여기까지
   지난 대화" divider, 초기 스크롤 즉시/이후 smooth. tone.ts 3종 추가.
   B2 6분기 conformance 확인 (자유입력 복원·503은 reasoned, 나머지 실 smoke).
+- fix: protocol.ts(서버 wire 타입), playedHint.ts(localStorage 힌트 헬퍼)
+  추출 — App.tsx 278줄로. 화면 3종은 결합 상태머신이라 App.tsx 유지.
+  tokens.css에 --dur-rise-slow 추가, 캡션 공통 블록 그룹 셀렉터.
 
 ## Layout & Naming
 

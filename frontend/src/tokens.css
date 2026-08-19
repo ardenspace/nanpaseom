@@ -48,6 +48,7 @@
 
   /* --- motion --- */
   --dur-fade: 350ms; /* 등장 페이드(rise-in) 기본 길이 */
+  --dur-rise-slow: 700ms; /* 타이틀 계열 느린 등장 (rise-in) */
   --transition-ui: 200ms ease; /* hover 등 인터랙션 트랜지션 (per-property) */
 
   /* --- type scale --- */

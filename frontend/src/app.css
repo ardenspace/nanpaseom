@@ -107,7 +107,7 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   gap: var(--space-8);
-  animation: rise-in 700ms ease-out;
+  animation: rise-in var(--dur-rise-slow) ease-out;
 }
 
 .title__name {
@@ -125,21 +125,23 @@ button:disabled {
   gap: var(--space-3);
 }
 
-.title__error {
+/* 타이틀 하단 caption 공용 블록 — error/note 는 색/등장 속도만 다르다. */
+.title__error,
+.title__note {
   max-width: 24rem;
   text-align: center;
   font-size: var(--font-size-sm);
+}
+
+.title__error {
   color: var(--color-system-error);
   animation: rise-in 300ms ease-out;
 }
 
 /* 재방문 힌트 안내 — 침묵한 시스템 톤 (강조 아님, 라벨 보조). */
 .title__note {
-  max-width: 24rem;
-  text-align: center;
-  font-size: var(--font-size-sm);
   color: var(--color-sand-500);
-  animation: rise-in 700ms ease-out;
+  animation: rise-in var(--dur-rise-slow) ease-out;
 }
 
 /* ---------- 채팅 화면 ---------- */
