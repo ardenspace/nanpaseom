@@ -101,7 +101,7 @@ Same React+Vite + FastAPI, plus PixiJS for real pixel-sprite animation, Cloudfla
 
 This addresses incognito-mode / localStorage-cleared sessions cleanly: the cookie uuid is the identity, not the localStorage blob.
 
-**Cross-device continuity via save code.** Cookie-only identity is single-browser. A player who starts on phone during a commute and wants to continue on a home PC needs an explicit bridge. When the player taps "세이브 코드 발급" in-game, the server mints a human-readable 9-character code (e.g. `MOON-7X2K`, `WAVE-3PQ9` — short prefix + 4-char random, excluding visually confusable characters like 0/O, 1/l) into `sessions.save_code`. On any device, entering the code in the title screen rebinds that browser's cookie to the existing session. Zero accounts, zero logins, pure recall. v1 stores plain codes in Postgres; rotation / invalidation deferred to v1.1 when abuse becomes a concern.
+**Cross-device continuity via save code.** Cookie-only identity is single-browser. A player who starts on phone during a commute and wants to continue on a home PC needs an explicit bridge. When the player taps "세이브 코드 발급" in-game, the server mints a human-readable 9-character code (e.g. `MAST-7X2K`, `WAVE-3PQ9` — short prefix + 4-char random, excluding visually confusable characters like 0/O, 1/l) into `sessions.save_code`. On any device, entering the code in the title screen rebinds that browser's cookie to the existing session. Zero accounts, zero logins, pure recall. v1 stores plain codes in Postgres; rotation / invalidation deferred to v1.1 when abuse becomes a concern.
 
 **Rendering:** CSS sprite sheets with `animation-timing-function: steps()` for walk/talk cycles. No game engine in v1. Mobile treated seriously (see Mobile Support section below).
 

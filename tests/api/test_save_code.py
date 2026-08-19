@@ -31,7 +31,12 @@ import uuid
 import psycopg
 
 from app.config import DATABASE_URL
-from app.save_code import SAVE_CODE_LENGTH, SAVE_CODE_RE
+from app.save_code import (
+    SAVE_CODE_LENGTH,
+    SAVE_CODE_PREFIX_WORDS,
+    SAVE_CODE_RE,
+    generate_save_code,
+)
 from app.store import repo
 from tests.api.conftest import make_stub_reply
 
@@ -110,6 +115,21 @@ def _restore_llm(monkeypatch):
     import app.llm.client as llm_client
 
     monkeypatch.setattr(llm_client, "call", lambda system, messages: make_stub_reply())
+
+
+# ------------------------------------------------------------ 형식 (generation)
+
+def test_generated_code_prefix_is_a_word_from_the_curated_list():
+    """인간 재판정 (2026-08-19): 프리픽스 = 단어 목록, 뒤 4자 = 랜덤 — pin.
+
+    전체 형식(9자, SAVE_CODE_RE)은 기존 테스트가 pin — 여기서는 새 결정인
+    "앞 그룹은 허용 알파벳 내 4자 단어 목록에서 온다"만 단언.
+    """
+    for _ in range(50):
+        code = generate_save_code()
+        assert SAVE_CODE_RE.fullmatch(code)
+        prefix, _tail = code.split("-")
+        assert prefix in SAVE_CODE_PREFIX_WORDS
 
 
 # ------------------------------------------------------------------ 발급 (issue)

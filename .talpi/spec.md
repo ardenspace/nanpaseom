@@ -151,7 +151,9 @@ session_uuid: str, matched_term?: str}`.
 - 스택: React + Vite, 패키지 매니저 bun (3D 확장 대비 — 사용자 결정)
 - 프론트 위치: 같은 레포 `frontend/` 디렉토리 (모노레포)
 - identity: 쿠키 = session_uuid, 계정/로그인 없음 (mechanic-spec 기존 설계)
-- 세이브 코드: 9자 PREFIX-XXXX, 혼동 문자 제외, v1 plain 저장 (mechanic-spec 기존 설계)
+- 세이브 코드: 9자 PREFIX-XXXX, 혼동 문자 제외, v1 plain 저장 (mechanic-spec 기존 설계).
+  PREFIX = 가독 단어(허용 알파벳 내 4자 단어 목록) + 랜덤 4자 — `MAST-7X2K` 류
+  (패널/검증자 에스컬레이션, 인간 재판정 2026-08-19: 완전 랜덤 아님)
 - 스키마: migration 003 = `sessions.save_code`만 추가. choices 복원용
   신규 컬럼/테이블 없음 (읽기 경로는 Delegated)
 - 신원 모델 (패널 BLOCKING → 인간 의식적 수용): 이번 런의 /turn은 body
