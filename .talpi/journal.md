@@ -14,3 +14,7 @@
 - [2026-08-19T10:21:52Z] phase 3 contracts pinned
 - [2026-08-19T10:40:04Z] phase 3 verified (1 ESCALATE open)
 - [2026-08-19T10:40:04Z] run halted: 세이브 코드 형식이 원장 Decided '9자 PREFIX-XXXX'(mechanic-spec 단어 프리픽스 설계)와 달리 완전 랜덤으로 구현 — 인간 ratify/reject 필요
+- [2026-08-19T10:50:11Z] run resumed after human ruling (세이브 코드 단어 프리픽스 reject→재구현, 검증 CLEAN)
+- [2026-08-19T10:50:11Z] phase 3 reported
+- [2026-08-19T11:08:31Z] run review (through db41e83): 6 findings (1 fixed, 5 noted)
+- [2026-08-19T11:09:17Z] final report sent, awaiting acceptance
