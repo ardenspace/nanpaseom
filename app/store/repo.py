@@ -42,6 +42,20 @@ def load_recent_turns(conn, session_uuid: str, npc_id: str, limit: int = 8) -> l
     return [{"role": r[0], "content": r[1]} for r in reversed(rows)]
 
 
+def load_last_reply_choices(conn, session_uuid: str, npc_id: str) -> list[dict]:
+    """마지막 assistant 턴의 choices. raw 없음(diegetic fallback 턴)/행 없음 = []
+    → 자유 입력 모드 (B2 resumed 계약)."""
+    row = conn.execute(
+        "SELECT reply_json_raw FROM chat_logs "
+        "WHERE session_uuid = %s AND npc_id = %s AND role = 'assistant' "
+        "ORDER BY turn_index DESC LIMIT 1",
+        (session_uuid, npc_id),
+    ).fetchone()
+    if row is None or row[0] is None:
+        return []
+    return row[0].get("choices", [])
+
+
 def next_turn_index(conn, session_uuid: str, npc_id: str) -> int:
     row = conn.execute(
         "SELECT COALESCE(MAX(turn_index), -1) + 1 FROM chat_logs "

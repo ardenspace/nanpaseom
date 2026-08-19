@@ -48,6 +48,12 @@ properties) 한 곳:
   신규 API 테스트는 이걸 쓴다 (기존 모듈들의 로컬 fixture는 shadow — 불변).
 - 예정: frontend API 클라이언트 모듈 (fetch 래핑, `{status:"error",message}`
   공통 처리) — 두 번째 endpoint 호출이 생기는 즉시 추출.
+- `app/turn/loop.py` — `build_turn_context()` + `TurnContext` dataclass:
+  npc/rules/state/band/시스템 프롬프트 조립 공유 (run_turn·run_opening 공용).
+- `app/store/repo.py` — `load_last_reply_choices()`: 마지막 assistant 턴의
+  choices (NULL raw = fallback 턴 → `[]` = 자유 입력 모드).
+- `rules/opening.yaml` — 오프닝 pseudo-user 지시문 + 503 시스템 톤 문구
+  (bootstrap 관련 문자열의 유일한 홈).
 
 ## Prior work this phase (Phase 1)
 
@@ -58,6 +64,13 @@ properties) 한 곳:
 - step 1: tests/api/test_static.py — B4 계약 (GET / 200 text/html,
   `NANPASEOM_STATIC_DIR` env, 기본 `frontend/dist`, 요청 시점 해석)
 - step 1: tests/api/conftest.py — 공유 client fixture (위 Shared Utilities)
+- step 2: app/turn/opening.py — run_opening() (오프닝 생성·persist,
+  실패 시 OpeningError → 503; awareness_delta 미적용은 의도 — docstring 참조)
+- step 2: app/api/main.py — POST /session/bootstrap (쿠키 UUID 검증,
+  ban 게이트 → resumed(무LLM, limit 8) → run_opening; 503에도 쿠키 세팅 =
+  0턴 재시도 계약) + GET / 정적 서빙 (B4 조기 랜딩 — NANPASEOM_STATIC_DIR,
+  기본 frontend/dist, 요청 시점 해석)
+- step 2: rules/opening.yaml — 오프닝 지시문/오류 문구 YAML
 
 ## Layout & Naming
 

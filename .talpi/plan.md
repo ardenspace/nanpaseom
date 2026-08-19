@@ -14,8 +14,9 @@ Contracts: B1, B2, B4
       text/html) + B1 기존 /turn 스위트 그린 확인. stub llm, 결정적.
       (early-pull: resumed/banned UI는 Phase 2·차단 화면은 Phase 1 후반이지만
       B2의 전체 시맨틱은 여기서 백엔드에 랜딩한다)
-- [ ] backend: bootstrap endpoint 구현 — 세션 생성/쿠키 발급, 수리공
+- [x] backend: bootstrap endpoint 구현 — 세션 생성/쿠키 발급, 수리공
       오프닝 턴 생성(내부 구현 재량), 0턴 재시도·오류 시맨틱 → B2 테스트 그린
+      (B4 정적 라우트도 조기 랜딩 — step 3는 와이어링 검증만)
 - [ ] frontend scaffold: bun + Vite + React로 frontend/ 생성, 디자인 토큰
       파일 + tone 모듈(로컬 UI 시스템 문구 단일 홈), FastAPI 정적 서빙
       와이어링 + dev proxy (B4 그린), `check_no_hardcoded_dialogue.py`
