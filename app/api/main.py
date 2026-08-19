@@ -7,9 +7,11 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
+from psycopg.errors import UniqueViolation
 from pydantic import BaseModel
 
 from app.models import TurnResponse
+from app.save_code import SAVE_CODE_RE, generate_save_code, load_save_code_rules
 from app.safety import strike
 from app.safety.moderation import denylist_checker, detect
 from app.safety.rules import load_safety_rules
@@ -84,6 +86,24 @@ def _bootstrap_response(payload: dict, session_uuid: str, status_code: int = 200
     return resp
 
 
+def _resumed_payload(conn, session_uuid: str, npc_id: str) -> dict | None:
+    """턴 ≥ 1 세션의 resumed 응답 body (LLM 콜 없음). 턴 0개면 None."""
+    history = repo.load_recent_turns(conn, session_uuid, npc_id, limit=8)
+    if not history:
+        return None
+    return {"status": "resumed", "session_uuid": session_uuid, "npc_id": npc_id,
+            "history": history,
+            "choices": repo.load_last_reply_choices(conn, session_uuid, npc_id)}
+
+
+def _new_payload(conn, session_uuid: str, npc_id: str) -> dict:
+    """턴 0개 세션 → 오프닝 생성 + new 응답 body. 실패 시 OpeningError 전파."""
+    opening = run_opening(conn, session_uuid, npc_id)
+    return {"status": "new", "session_uuid": session_uuid, "npc_id": npc_id,
+            "reply": opening.reply,
+            "choices": [c.model_dump() for c in opening.choices]}
+
+
 @app.post("/session/bootstrap")
 def bootstrap(request: Request) -> JSONResponse:
     """B2 — 쿠키가 신원. new(오프닝 생성) / resumed(LLM 콜 없음) / banned / 503 error."""
@@ -100,29 +120,96 @@ def bootstrap(request: Request) -> JSONResponse:
                 session_uuid,
             )
 
-        history = repo.load_recent_turns(conn, session_uuid, npc_id, limit=8)
-        if history:  # 턴 ≥ 1 → resumed (LLM 호출 없음)
-            return _bootstrap_response(
-                {"status": "resumed", "session_uuid": session_uuid, "npc_id": npc_id,
-                 "history": history,
-                 "choices": repo.load_last_reply_choices(conn, session_uuid, npc_id)},
-                session_uuid,
-            )
+        payload = _resumed_payload(conn, session_uuid, npc_id)
+        if payload is None:
+            # 턴 0개 (신규 / 미지의 쿠키 / 이전 오프닝 실패) → 같은 세션으로 오프닝 (재)시도.
+            try:
+                payload = _new_payload(conn, session_uuid, npc_id)
+            except OpeningError:
+                return _bootstrap_response(
+                    {"status": "error", "message": load_opening_rules().error_message},
+                    session_uuid, status_code=503,
+                )
+        return _bootstrap_response(payload, session_uuid)
 
-        # 턴 0개 (신규 / 미지의 쿠키 / 이전 오프닝 실패) → 같은 세션으로 오프닝 (재)시도.
+
+# --------------------------------------------------------------- B3 세이브 코드
+
+SAVE_CODE_MINT_ATTEMPTS = 20  # 31^8 공간 — 충돌 자체가 희귀, 상한은 안전장치
+
+
+class RedeemRequest(BaseModel):
+    code: str
+
+
+def _mint_save_code(conn, session_uuid: str) -> str:
+    """UNIQUE 충돌 시 재시도하며 세션에 새 코드 부여."""
+    for _ in range(SAVE_CODE_MINT_ATTEMPTS):
+        code = generate_save_code()
         try:
-            opening = run_opening(conn, session_uuid, npc_id)
-        except OpeningError:
-            return _bootstrap_response(
-                {"status": "error", "message": load_opening_rules().error_message},
-                session_uuid, status_code=503,
-            )
-        return _bootstrap_response(
-            {"status": "new", "session_uuid": session_uuid, "npc_id": npc_id,
-             "reply": opening.reply,
-             "choices": [c.model_dump() for c in opening.choices]},
-            session_uuid,
+            repo.set_save_code(conn, session_uuid, code)
+        except UniqueViolation:
+            continue
+        return code
+    raise HTTPException(status_code=500, detail="save code minting exhausted retries")
+
+
+@app.post("/save-code")
+def issue_save_code(request: Request) -> JSONResponse:
+    """B3 발급 — 쿠키가 신원. 쿠키 없으면 400 (bootstrap 과 달리 세션을 만들지 않는다).
+
+    재발급은 기존 코드 반환 (idempotent — 이미 적어 둔 코드가 계속 유효).
+    """
+    session_uuid = _cookie_session_uuid(request)
+    if session_uuid is None:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error",
+                     "message": load_save_code_rules().issue_no_session_message},
         )
+    with db.connect() as conn:
+        repo.ensure_session(conn, session_uuid)
+        sess = repo.load_session(conn, session_uuid)
+        if sess.banned:
+            return JSONResponse(content={"status": "banned", "ban_reason": sess.ban_reason or ""})
+        code = repo.get_save_code(conn, session_uuid) or _mint_save_code(conn, session_uuid)
+        return JSONResponse(content={"status": "ok", "save_code": code})
+
+
+def _redeem_not_found() -> JSONResponse:
+    return JSONResponse(
+        status_code=404,
+        content={"status": "error",
+                 "message": load_save_code_rules().redeem_not_found_message},
+    )
+
+
+@app.post("/save-code/redeem")
+def redeem_save_code(req: RedeemRequest) -> JSONResponse:
+    """B3 redeem — 코드로 세션 복원. 쿠키 재바인딩은 성공(new/resumed) 응답에만."""
+    if not SAVE_CODE_RE.fullmatch(req.code):
+        return _redeem_not_found()  # 형식 위반 = 미지의 코드와 동일 404 (DB 조회 불필요)
+    with db.connect() as conn:
+        session_uuid = repo.find_session_by_save_code(conn, req.code)
+        if session_uuid is None:
+            return _redeem_not_found()
+
+        sess = repo.load_session(conn, session_uuid)
+        if sess.banned:  # 재바인딩 없음 — 밴 세션으로 갈아타지 않는다.
+            return JSONResponse(content={"status": "banned", "ban_reason": sess.ban_reason or ""})
+
+        npc_id = BOOTSTRAP_NPC_ID
+        payload = _resumed_payload(conn, session_uuid, npc_id)
+        if payload is None:
+            try:
+                payload = _new_payload(conn, session_uuid, npc_id)
+            except OpeningError:
+                # bootstrap 503 과 달리 쿠키를 심지 않는다 — 기존 세션 유지.
+                return JSONResponse(
+                    status_code=503,
+                    content={"status": "error", "message": load_opening_rules().error_message},
+                )
+        return _bootstrap_response(payload, session_uuid)  # 성공 → 쿠키 재바인딩
 
 
 @app.get("/")

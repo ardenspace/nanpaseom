@@ -133,6 +133,30 @@ def append_safety_event(conn, session_uuid: str, category: str, matched_term: st
     )
 
 
+def get_save_code(conn, session_uuid: str) -> str | None:
+    """세션의 세이브 코드 (미발급/행 없음 = None)."""
+    row = conn.execute(
+        "SELECT save_code FROM sessions WHERE session_uuid = %s", (session_uuid,)
+    ).fetchone()
+    return row[0] if row else None
+
+
+def set_save_code(conn, session_uuid: str, save_code: str) -> None:
+    """세이브 코드 부여 — UNIQUE 인덱스 충돌 시 psycopg UniqueViolation 전파 (호출자 재시도)."""
+    conn.execute(
+        "UPDATE sessions SET save_code = %s WHERE session_uuid = %s",
+        (save_code, session_uuid),
+    )
+
+
+def find_session_by_save_code(conn, save_code: str) -> str | None:
+    """코드 → session_uuid (미지의 코드 = None)."""
+    row = conn.execute(
+        "SELECT session_uuid FROM sessions WHERE save_code = %s", (save_code,)
+    ).fetchone()
+    return str(row[0]) if row else None
+
+
 def count_exchanges(conn, session_uuid: str, npc_id: str) -> int:
     """완료된 exchange 수. 1 exchange = user+assistant 2행 → (MAX(turn_index)+1)//2."""
     row = conn.execute(

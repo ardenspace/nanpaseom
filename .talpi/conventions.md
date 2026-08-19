@@ -71,6 +71,12 @@ test_static.py(7), 공유 conftest. 게이트 221 passed, 2 deselected.)
   + 세션 민팅 금지), POST /save-code/redeem {code} (unknown/malformed 404,
   rebind Set-Cookie는 new/resumed에만 — bootstrap의 "503에도 쿠키" 패턴
   redeem에선 금지, 오프닝 실패 503 시 rebind 커밋 금지).
+- step 2: app/api/main.py — POST /save-code(발급, 재발급=기존 코드 반환
+  idempotent) + /save-code/redeem. `_resumed_payload`/`_new_payload` 공유
+  헬퍼 추출(bootstrap도 사용). rules/save_code.yaml — 발급/redeem 오류
+  문구 (redeem 503은 opening.yaml error_message 재사용 — 같은 사실 한 곳).
+  app/save_code.py에 generate_save_code() + rules 로더. repo에
+  get/set_save_code, find_session_by_save_code.
 
 ## Layout & Naming
 
