@@ -80,6 +80,10 @@ properties) 한 곳:
 - step 3: scripts/check_no_hardcoded_dialogue.py — frontend 스캔 확장
   (NPC 대사는 tone.ts 포함 전역 금지, 한국어 리터럴은 tone.ts만 예외;
   scan_frontend_korean/STRING_LIT_RE 테스트에서 재사용)
+- step 4: frontend/src/App.tsx — 타이틀/채팅/차단 화면 전체 (bootstrap
+  분기, choice 턴, 빈 choices→자유입력, warning은 이전 choices 유지 —
+  클라이언트가 규칙 보유, ban 즉시 차단). resumed 렌더 조기 랜딩.
+  tone.ts에 UI 라벨 6종 추가. 실 LLM + 헤드리스 브라우저 smoke 완료.
 
 ## Layout & Naming
 

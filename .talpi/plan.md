@@ -21,10 +21,11 @@ Contracts: B1, B2, B4
       파일 + tone 모듈(로컬 UI 시스템 문구 단일 홈), FastAPI 정적 서빙
       와이어링 + dev proxy (B4 그린), `check_no_hardcoded_dialogue.py`
       frontend/ 스캔 확장(tone 모듈만 예외)
-- [ ] frontend 화면: 타이틀(“Still Here” + [시작하기]; 세이브 코드 입력은
+- [x] frontend 화면: 타이틀(“Still Here” + [시작하기]; 세이브 코드 입력은
       Phase 3 자리표시) + 채팅 화면 — 말풍선/선택지 버튼/kind=npc 빈
       choices→자유 입력 전환/warning·ban 시스템 톤 렌더 + ban 즉시 차단
-      화면. 브라우저 첫 플레이 smoke.
+      화면. 브라우저 첫 플레이 smoke. (resumed 렌더도 조기 랜딩 —
+      Phase 2는 타이틀 분기/밴 재방문/복원 폴리시 확인 중심)
 
 ## Phase 2: 닫았다 다시 와도 이어진다
 
