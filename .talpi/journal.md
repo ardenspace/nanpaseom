@@ -18,3 +18,6 @@
 - [2026-08-19T10:50:11Z] phase 3 reported
 - [2026-08-19T11:08:31Z] run review (through db41e83): 6 findings (1 fixed, 5 noted)
 - [2026-08-19T11:09:17Z] final report sent, awaiting acceptance
+- [2026-08-19T12:55:10Z] acceptance received
+- [2026-08-19T12:56:06Z] knowledge distilled
+- [2026-08-19T12:56:06Z] run done
