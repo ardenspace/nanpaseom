@@ -51,6 +51,6 @@ Contracts: B3, B5
       시에만 쿠키 재바인딩, 잘못된 코드 404/오프닝 실패 503, 밴 코드
       no-rebind)
 - [x] backend: migration 003 + 발급/redeem endpoint → B3/B5 테스트 그린
-- [ ] frontend: 채팅 화면 세이브 코드 발급 UI + 타이틀 코드 입력 +
+- [x] frontend: 채팅 화면 세이브 코드 발급 UI + 타이틀 코드 입력 +
       기존 세션 대체 확인 다이얼로그(tone 모듈 문구) → 두 브라우저
       프로필로 크로스 디바이스 smoke

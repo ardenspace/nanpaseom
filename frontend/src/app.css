@@ -358,6 +358,112 @@ button:disabled {
   border-color: var(--color-rust-400);
 }
 
+/* ---------- 오버레이 (세이브 코드 발급 / 대체 확인 — 시스템 톤 면) ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10; /* 단일 사용 — 채팅/타이틀 위에 뜨는 유일한 레이어 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+/* 뒤 화면을 가라앉히는 어둑막 — title__mist 와 같은 패턴 (색은 토큰). */
+.overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--color-abyss-900);
+  opacity: 0.7;
+}
+
+.overlay__panel {
+  position: relative;
+  width: 100%;
+  max-width: 24rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--color-system-surface);
+  border: var(--border-hairline) solid var(--color-abyss-300);
+  border-radius: var(--radius-md);
+  text-align: center;
+  animation: rise-in var(--dur-fade) ease-out;
+}
+
+.overlay__title {
+  font-size: var(--font-size-lg);
+  color: var(--color-sand-100);
+}
+
+/* 대체 확인 — 파괴적 액션이라 시스템 경고색 헤딩. */
+.overlay__title--warning {
+  color: var(--color-system-warning);
+}
+
+.overlay__body {
+  font-size: var(--font-size-sm);
+  color: var(--color-sand-300);
+  white-space: pre-wrap;
+}
+
+.overlay__actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* 발급된 세이브 코드 — 읽고 옮겨 적는 대상이라 크게, 클릭 한 번에 전체 선택. */
+.savecode__code {
+  font-size: var(--font-size-xl);
+  letter-spacing: var(--tracking-code);
+  color: var(--color-sand-100);
+  user-select: all;
+}
+
+/* ---------- 채팅 헤더 세이브 코드 버튼 (은은한 어포던스) ---------- */
+
+.chat__save-btn {
+  margin-left: auto;
+  padding: var(--space-1) var(--space-3);
+}
+
+/* ---------- 타이틀 세이브 코드 입력 ---------- */
+
+.code-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  animation: rise-in var(--dur-fade) ease-out;
+}
+
+/* base 스타일은 free-input__field 재사용 — 코드 전용 형태만 얹는다. */
+.code-entry__field {
+  flex: none;
+  width: 14rem;
+  text-align: center;
+  letter-spacing: var(--tracking-code);
+  text-transform: uppercase;
+}
+
+.code-entry__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* redeem 실패 안내 — 밴 사유 등 여러 줄 서버 문구 pre-wrap. */
+.code-entry__error {
+  max-width: 24rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-system-error);
+  text-align: center;
+  white-space: pre-wrap;
+  animation: rise-in 300ms ease-out;
+}
+
 /* ---------- 차단 화면 ---------- */
 
 .banned {

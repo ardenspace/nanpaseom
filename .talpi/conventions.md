@@ -87,9 +87,12 @@ test_static.py(7), 공유 conftest. 게이트 221 passed, 2 deselected.)
   `migrations/NNN_*.sql` 시퀀셜.
 - 신규 endpoint는 기존 `POST /turn`처럼 `app/api/main.py`에서 시작,
   300줄 리뷰 트리거 시 라우터 분리.
-- app.css는 단일 파일 유지(~359줄, 300줄 리뷰 완료): 타이틀/채팅/차단
-  화면이 하나의 시각 어휘(btn/bubble/system-msg/rise-in)를 공유하고 독립
-  소비자가 없어 분리하면 항상 같이 로드되는 응집 테마 코드가 흩어짐.
+- app.css는 단일 파일 유지(~499줄, 300줄 리뷰 완료·세이브 코드 UI로 증가):
+  타이틀/채팅/차단 화면이 하나의 시각 어휘(btn/bubble/system-msg/rise-in,
+  이제 overlay 포함)를 공유하고 독립 소비자가 없어 분리하면 항상 같이
+  로드되는 응집 테마 코드가 흩어짐. App.tsx도 ~498줄로 300줄 리뷰 트리거
+  통과 상태 — 화면 3개가 세션 상태 머신 하나를 공유해 단일 파일 유지
+  (다음 기능 추가 시 화면별 컴포넌트 분리 재검토).
 - dev 포트: 이 머신 점유 포트(8080 llama-server, 8000, 8081, 5433,
   5000, 7000, 7265, 6463) 회피. 선택: backend dev **8765** (uvicorn),
   frontend dev 5173 (vite, proxy → 8765).

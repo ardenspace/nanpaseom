@@ -15,6 +15,18 @@ export type BootstrapData = {
   message?: string;
 };
 
+// B3 세이브 코드 발급 응답 — 분기는 status 로 (ok / banned / error).
+export type SaveCodeIssueData = {
+  status: string;
+  save_code?: string;
+  ban_reason?: string;
+  message?: string;
+};
+
+// B3 redeem 응답 — bootstrap 과 wire shape 를 의도적으로 공유한다
+// (성공 시 채팅 진입 렌더 로직 재사용). 별칭으로 그 의도를 기록.
+export type RedeemData = BootstrapData;
+
 // B1 turn 응답 — 분기는 kind 로 (npc / warning / ban).
 export type TurnData = {
   kind: string;

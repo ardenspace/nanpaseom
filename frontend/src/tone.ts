@@ -26,8 +26,57 @@ export const RETURNING_NOTE = "이전 세션이 남아 있으면 이어서 계�
 /** 타이틀 — 연결(bootstrap) 진행 중 버튼 라벨. */
 export const CONNECTING = "연결 중…";
 
-/** 타이틀 — 세이브 코드 진입점 (Phase 3 예정, 지금은 비활성 자리표시). */
-export const SAVE_CODE_ENTRY_DISABLED = "세이브 코드로 이어하기 (준비 중)";
+/** 타이틀 — 세이브 코드 입력 진입 버튼. */
+export const SAVE_CODE_ENTRY = "세이브 코드로 이어하기";
+
+/** 타이틀 — 세이브 코드 입력 필드 placeholder (형식 안내, A-Z·2-9). */
+export const SAVE_CODE_INPUT_PLACEHOLDER = "XXXX-XXXX";
+
+/** 타이틀 — 세이브 코드 제출 버튼. */
+export const SAVE_CODE_SUBMIT = "불러오기";
+
+/** 타이틀 — 세이브 코드 입력 취소 버튼. */
+export const SAVE_CODE_CANCEL = "취소";
+
+/** 타이틀 — redeem 실패 폴백 (서버 message 가 있으면 그쪽 우선). */
+export const SAVE_CODE_ERROR_FALLBACK =
+  "세이브 코드를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+
+/** 타이틀 — 밴된 세션의 코드 redeem 결과 안내. 재바인딩이 없었으므로
+ *  이 기기의 진행은 무사하다는 사실을 함께 말한다 (정직한 인프라 언어). */
+export const SAVE_CODE_BANNED_NOTE =
+  "이 세이브 코드의 세션은 차단된 상태라 불러올 수 없습니다. 이 기기의 진행은 그대로 유지됩니다.";
+
+/** 대체 확인 다이얼로그 — 제목. */
+export const REPLACE_CONFIRM_TITLE = "진행 대체 확인";
+
+/** 대체 확인 다이얼로그 — 본문. localStorage 힌트 기반이라 단정하지 않되,
+ *  "이 기기의 진행이 대체됩니다" 취지는 분명히 (spec 고정 사항). */
+export const REPLACE_CONFIRM_BODY =
+  "세이브 코드를 불러오면 이 기기의 진행이 코드의 세션으로 대체됩니다. 계속할까요?";
+
+/** 대체 확인 다이얼로그 — 진행(대체) 버튼. */
+export const REPLACE_CONFIRM_OK = "대체하고 이어하기";
+
+/** 대체 확인 다이얼로그 — 취소 버튼 (이 기기의 진행 유지). */
+export const REPLACE_CONFIRM_CANCEL = "돌아가기";
+
+/** 채팅 — 헤더의 세이브 코드 발급 버튼. */
+export const SAVE_CODE_BUTTON = "세이브 코드";
+
+/** 채팅 — 발급된 코드 표시 패널 제목. */
+export const SAVE_CODE_ISSUED_TITLE = "세이브 코드";
+
+/** 채팅 — 발급된 코드 안내. 재발급해도 같은 코드 (idempotent 사실 전달). */
+export const SAVE_CODE_ISSUED_NOTE =
+  "이 코드를 적어 두면 다른 기기에서 이어할 수 있습니다. 다시 확인해도 코드는 바뀌지 않습니다.";
+
+/** 채팅 — 코드 복사 버튼 / 복사 완료 라벨. */
+export const SAVE_CODE_COPY = "코드 복사";
+export const SAVE_CODE_COPIED = "복사되었습니다";
+
+/** 채팅 — 코드 패널 닫기 버튼. */
+export const SAVE_CODE_CLOSE = "닫기";
 
 /** 채팅 — 재방문 복원 시 지난 대화와 새 턴을 가르는 구분선 라벨. */
 export const RESUME_DIVIDER = "여기까지 지난 대화";

@@ -51,6 +51,9 @@
   --dur-rise-slow: 700ms; /* 타이틀 계열 느린 등장 (rise-in) */
   --transition-ui: 200ms ease; /* hover 등 인터랙션 트랜지션 (per-property) */
 
+  /* --- letter spacing --- */
+  --tracking-code: 0.15em; /* 세이브 코드 표시/입력 — 옮겨 적기 좋은 자간 */
+
   /* --- type scale --- */
   --font-family-base: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR",
     system-ui, sans-serif;
