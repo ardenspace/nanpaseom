@@ -23,6 +23,8 @@ app = FastAPI(title="난파섬 Sub-2b slice")
 
 # B2: 쿠키가 신원. 이번 런은 수리공 단독 — npc 는 서버가 결정.
 COOKIE_NAME = "session_uuid"
+# 브라우저 완전 종료 후에도 세션 유지 — 장수 쿠키 (session cookie 금지).
+SESSION_COOKIE_MAX_AGE = 180 * 24 * 3600  # 180일
 BOOTSTRAP_NPC_ID = "surigong"
 
 # B4: Vite 빌드 산출물. env 는 request 시점 resolve (test_static 계약).
@@ -82,7 +84,10 @@ def _cookie_session_uuid(request: Request) -> str | None:
 def _bootstrap_response(payload: dict, session_uuid: str, status_code: int = 200) -> JSONResponse:
     """B2 응답 + 쿠키 발급/재발급. 503 에도 쿠키를 심어 재시도 시 같은 세션 재사용."""
     resp = JSONResponse(status_code=status_code, content=payload)
-    resp.set_cookie(COOKIE_NAME, session_uuid, httponly=True, samesite="lax")
+    resp.set_cookie(
+        COOKIE_NAME, session_uuid,
+        max_age=SESSION_COOKIE_MAX_AGE, httponly=True, samesite="lax",
+    )
     return resp
 
 

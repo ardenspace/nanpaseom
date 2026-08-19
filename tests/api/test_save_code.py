@@ -30,6 +30,7 @@ import uuid
 
 import psycopg
 
+from app.api.main import SESSION_COOKIE_MAX_AGE
 from app.config import DATABASE_URL
 from app.save_code import (
     SAVE_CODE_LENGTH,
@@ -221,7 +222,10 @@ def test_redeem_session_with_turns_resumes_and_rebinds_cookie(client):
         assert msg["content"]
     for ch in body["choices"]:
         assert ch["tone"] and ch["text"]
-    assert _session_set_cookies(r)  # 성공 → 재바인딩
+    rebind_cookies = _session_set_cookies(r)
+    assert rebind_cookies  # 성공 → 재바인딩
+    for h in rebind_cookies:  # 재바인딩 쿠키도 장수 (session cookie 금지)
+        assert f"Max-Age={SESSION_COOKIE_MAX_AGE}" in h
 
     # 재바인딩 확인 — 이후 bootstrap 이 그 세션으로 이어진다.
     rb2 = client.post(BOOTSTRAP_URL)
@@ -243,7 +247,10 @@ def test_redeem_zero_turn_session_is_new_with_opening_and_rebinds(client):
     assert body["choices"]
     for ch in body["choices"]:
         assert ch["tone"] and ch["text"]
-    assert _session_set_cookies(r)  # 성공 → 재바인딩
+    rebind_cookies = _session_set_cookies(r)
+    assert rebind_cookies  # 성공 → 재바인딩
+    for h in rebind_cookies:  # 재바인딩 쿠키도 장수 (session cookie 금지)
+        assert f"Max-Age={SESSION_COOKIE_MAX_AGE}" in h
 
     rb = client.post(BOOTSTRAP_URL)
     assert rb.json()["status"] == "resumed"
