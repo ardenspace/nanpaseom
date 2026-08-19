@@ -56,35 +56,18 @@ properties) 한 곳:
 - `rules/opening.yaml` — 오프닝 pseudo-user 지시문 + 503 시스템 톤 문구
   (bootstrap 관련 문자열의 유일한 홈).
 
-## Prior work this phase (Phase 1)
+## Prior work this phase (Phase 2)
 
-- step 1: tests/api/test_bootstrap.py — B2 계약 9 테스트 (URL 확정:
-  `POST /session/bootstrap`, 쿠키명 `session_uuid`, npc_id="surigong" 고정,
-  503 = LLMError 스텁; run_turn은 LLMError를 diegetic fallback으로 삼키므로
-  오프닝 생성에 그대로 재사용 불가 — 503 표면화 필요)
-- step 1: tests/api/test_static.py — B4 계약 (GET / 200 text/html,
-  `NANPASEOM_STATIC_DIR` env, 기본 `frontend/dist`, 요청 시점 해석)
-- step 1: tests/api/conftest.py — 공유 client fixture (위 Shared Utilities)
-- step 2: app/turn/opening.py — run_opening() (오프닝 생성·persist,
-  실패 시 OpeningError → 503; awareness_delta 미적용은 의도 — docstring 참조)
-- step 2: app/api/main.py — POST /session/bootstrap (쿠키 UUID 검증,
-  ban 게이트 → resumed(무LLM, limit 8) → run_opening; 503에도 쿠키 세팅 =
-  0턴 재시도 계약) + GET / 정적 서빙 (B4 조기 랜딩 — NANPASEOM_STATIC_DIR,
-  기본 frontend/dist, 요청 시점 해석)
-- step 2: rules/opening.yaml — 오프닝 지시문/오류 문구 YAML
-- step 3: frontend/ — bun+Vite+React+TS scaffold. tokens.css(토큰 단일 홈),
-  tone.ts(로컬 시스템 문구 단일 홈 — SERVER_UNREACHABLE, GENERIC_ERROR),
-  public/assets/README.md(드롭인 규약). dev: uvicorn 8765 + vite 5173 proxy
-  (/session,/turn,/save-code). build = tsc + vite build → dist.
-- step 3: app/api/main.py — GET /assets/{path} 추가 (번들 서빙에 필수,
-  request-time env resolve 패턴 동일 + traversal 가드)
-- step 3: scripts/check_no_hardcoded_dialogue.py — frontend 스캔 확장
-  (NPC 대사는 tone.ts 포함 전역 금지, 한국어 리터럴은 tone.ts만 예외;
-  scan_frontend_korean/STRING_LIT_RE 테스트에서 재사용)
-- step 4: frontend/src/App.tsx — 타이틀/채팅/차단 화면 전체 (bootstrap
-  분기, choice 턴, 빈 choices→자유입력, warning은 이전 choices 유지 —
-  클라이언트가 규칙 보유, ban 즉시 차단). resumed 렌더 조기 랜딩.
-  tone.ts에 UI 라벨 6종 추가. 실 LLM + 헤드리스 브라우저 smoke 완료.
+(Phase 1 산출물 요약: POST /session/bootstrap + run_opening + GET / &
+/assets 정적 서빙 백엔드; frontend/src에 App.tsx(타이틀/채팅/차단 화면,
+resumed 렌더 포함 — 조기 랜딩), api.ts, tone.ts, tokens.css, app.css.
+테스트: tests/api/test_bootstrap.py(B2 9), test_static.py(B4 7), 공유
+conftest. 게이트 221 passed.)
+
+- step 1: App.tsx — localStorage played-hint(`nanpaseom.played`, 힌트만 —
+  신원은 쿠키), [이어하기] 분기 + 안내 캡션, past 말풍선 dim + "여기까지
+  지난 대화" divider, 초기 스크롤 즉시/이후 smooth. tone.ts 3종 추가.
+  B2 6분기 conformance 확인 (자유입력 복원·503은 reasoned, 나머지 실 smoke).
 
 ## Layout & Naming
 

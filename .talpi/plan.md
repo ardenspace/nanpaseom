@@ -34,7 +34,7 @@ Contracts: B1, B2, B4
 
 Contracts: (없음 — Phase 1에 랜딩된 B2 시맨틱에 대한 frontend conformance)
 
-- [ ] frontend 재방문 UX: 타이틀 이어하기 분기(쿠키 세션 존재 시),
+- [x] frontend 재방문 UX: 타이틀 이어하기 분기(쿠키 세션 존재 시),
       최근 N턴 transcript 렌더 + 선택지/자유입력 모드 복원, 밴 세션
       재방문 차단 화면 — B2 계약 대비 conformance 확인 포함, 재방문 smoke
 

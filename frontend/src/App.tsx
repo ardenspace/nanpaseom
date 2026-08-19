@@ -2,13 +2,16 @@
 // 규약: 한글 시스템 문구는 전부 tone.ts 상수. NPC 텍스트는 전부 서버에서 온다.
 // "Still Here" 는 게임 타이틀(영문)이라 마크업에 둔다.
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { postJson } from "./api";
 import {
   BANNED_TITLE,
   CONNECTING,
+  CONTINUE_BUTTON,
   FREE_INPUT_PLACEHOLDER,
   GENERIC_ERROR,
+  RESUME_DIVIDER,
+  RETURNING_NOTE,
   SAVE_CODE_ENTRY_DISABLED,
   SEND_BUTTON,
   SERVER_UNREACHABLE,
@@ -36,15 +39,37 @@ type TurnData = {
 };
 
 // warning/error 는 프레임 깨는 시스템 블록 — NPC 말풍선과 시각적으로 분리 렌더.
+// past = 재방문 복원된 지난 대화 (히스토리 prefix 에만 붙는다) — 흐리게 렌더.
 type Msg = {
   kind: "npc" | "user" | "warning" | "error";
   text: string;
+  past?: boolean;
 };
 
 type Screen = "title" | "chat" | "banned";
 
 // 클라이언트측 여유 상한 — 실제 제한은 서버(Layer 1)가 소유.
 const MAX_INPUT_LEN = 500;
+
+// 재방문 *힌트* — 신원 권한은 어디까지나 서버 쿠키. localStorage 는
+// 타이틀 버튼 라벨/카피만 바꾼다 (bootstrap 결과가 항상 진실).
+const PLAYED_HINT_KEY = "nanpaseom.played";
+
+function readPlayedHint(): boolean {
+  try {
+    return localStorage.getItem(PLAYED_HINT_KEY) === "1";
+  } catch {
+    return false; // 프라이버시 모드 등 — 힌트 없음으로 취급.
+  }
+}
+
+function markPlayedHint() {
+  try {
+    localStorage.setItem(PLAYED_HINT_KEY, "1");
+  } catch {
+    // 힌트 저장 실패는 무해 — 다음 방문에 [시작하기] 로 보일 뿐.
+  }
+}
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("title");
@@ -57,10 +82,18 @@ export default function App() {
   const [banReason, setBanReason] = useState("");
   const [draft, setDraft] = useState("");
   const [spriteVisible, setSpriteVisible] = useState(true);
+  // 재방문 힌트는 타이틀 첫 렌더 시점에 한 번만 읽는다 (라벨 용도).
+  const [playedHint] = useState(readPlayedHint);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const firstScrollRef = useRef(true);
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length === 0) return;
+    // 첫 진입(특히 resumed 히스토리)은 즉시 점프 — 이후 새 메시지만 부드럽게.
+    logEndRef.current?.scrollIntoView({
+      behavior: firstScrollRef.current ? "auto" : "smooth",
+    });
+    firstScrollRef.current = false;
   }, [messages, busy]);
 
   function pushMsg(kind: Msg["kind"], text: string) {
@@ -77,15 +110,18 @@ export default function App() {
     } else {
       const data = r.data;
       if (data.status === "banned") {
+        markPlayedHint(); // 밴 세션도 플레이 이력 — 재방문 라벨 유지.
         setBanReason(data.ban_reason ?? "");
         setScreen("banned");
       } else if (data.status === "new") {
+        markPlayedHint();
         setSessionUuid(data.session_uuid ?? "");
         setNpcId(data.npc_id ?? "");
         setMessages([{ kind: "npc", text: data.reply ?? "" }]);
         setChoices(data.choices ?? []);
         setScreen("chat");
       } else if (data.status === "resumed") {
+        markPlayedHint();
         setSessionUuid(data.session_uuid ?? "");
         setNpcId(data.npc_id ?? "");
         setMessages(
@@ -93,6 +129,7 @@ export default function App() {
             (h): Msg => ({
               kind: h.role === "user" ? "user" : "npc",
               text: h.content,
+              past: true, // 지난 대화 — 새 턴과 시각적으로 구분.
             }),
           ),
         );
@@ -169,13 +206,16 @@ export default function App() {
               onClick={() => void start()}
               disabled={busy}
             >
-              {busy ? CONNECTING : START_BUTTON}
+              {busy ? CONNECTING : playedHint ? CONTINUE_BUTTON : START_BUTTON}
             </button>
             {/* Phase 3 자리표시 — 세이브 코드 입력은 아직 미배선. */}
             <button className="btn btn--ghost" disabled>
               {SAVE_CODE_ENTRY_DISABLED}
             </button>
           </div>
+          {playedHint && !titleError && (
+            <p className="title__note">{RETURNING_NOTE}</p>
+          )}
           {titleError && <p className="title__error">{titleError}</p>}
         </div>
       </main>
@@ -199,17 +239,33 @@ export default function App() {
       </header>
 
       <div className="chat__log">
-        {messages.map((m, i) =>
-          m.kind === "warning" || m.kind === "error" ? (
-            <div key={i} className={`system-msg system-msg--${m.kind}`}>
-              {m.text}
-            </div>
+        {messages.map((m, i) => {
+          const block =
+            m.kind === "warning" || m.kind === "error" ? (
+              <div key={i} className={`system-msg system-msg--${m.kind}`}>
+                {m.text}
+              </div>
+            ) : (
+              <div
+                key={i}
+                className={`bubble bubble--${m.kind}${m.past ? " bubble--past" : ""}`}
+              >
+                {m.text}
+              </div>
+            );
+          // 지난 대화 블록 끝 — 새 턴과의 경계 구분선 (past 는 항상 prefix).
+          const pastBoundary = m.past && !messages[i + 1]?.past;
+          return pastBoundary ? (
+            <Fragment key={i}>
+              {block}
+              <div className="resume-divider" role="separator">
+                {RESUME_DIVIDER}
+              </div>
+            </Fragment>
           ) : (
-            <div key={i} className={`bubble bubble--${m.kind}`}>
-              {m.text}
-            </div>
-          ),
-        )}
+            block
+          );
+        })}
         {busy && (
           <div className="bubble bubble--npc typing" aria-hidden="true">
             <span className="typing__dot" />

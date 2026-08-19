@@ -133,6 +133,15 @@ button:disabled {
   animation: rise-in 300ms ease-out;
 }
 
+/* 재방문 힌트 안내 — 침묵한 시스템 톤 (강조 아님, 라벨 보조). */
+.title__note {
+  max-width: 24rem;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-sand-500);
+  animation: rise-in 700ms ease-out;
+}
+
 /* ---------- 채팅 화면 ---------- */
 
 .chat {
@@ -202,6 +211,29 @@ button:disabled {
   background: var(--color-sand-300);
   color: var(--color-abyss-900);
   border-bottom-right-radius: var(--radius-sm);
+}
+
+/* 재방문 복원된 지난 대화 — 살짝 가라앉은 톤, 등장 애니메이션 없이 즉시. */
+.bubble--past {
+  opacity: 0.68;
+  animation: none;
+}
+
+/* 지난 대화 / 새 턴 경계선 — 얇은 안개선 + 침묵한 라벨. */
+.resume-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-sand-500);
+}
+
+.resume-divider::before,
+.resume-divider::after {
+  content: "";
+  flex: 1;
+  border-top: var(--border-hairline) solid var(--color-abyss-300);
 }
 
 /* ---------- 시스템 메시지 (프레임 깨는 톤 — NPC 색과 절대 공유 금지) ---------- */

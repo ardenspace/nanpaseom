@@ -17,11 +17,20 @@ export const GENERIC_ERROR =
 /** 타이틀 — 시작 버튼. */
 export const START_BUTTON = "시작하기";
 
+/** 타이틀 — 재방문 힌트가 있을 때의 시작 버튼 (서버가 실제 세션 유무를 판정). */
+export const CONTINUE_BUTTON = "이어하기";
+
+/** 타이틀 — 재방문 힌트 안내. localStorage 힌트 기반이라 단정하지 않는 문구. */
+export const RETURNING_NOTE = "이전 세션이 남아 있으면 이어서 계속됩니다";
+
 /** 타이틀 — 연결(bootstrap) 진행 중 버튼 라벨. */
 export const CONNECTING = "연결 중…";
 
 /** 타이틀 — 세이브 코드 진입점 (Phase 3 예정, 지금은 비활성 자리표시). */
 export const SAVE_CODE_ENTRY_DISABLED = "세이브 코드로 이어하기 (준비 중)";
+
+/** 채팅 — 재방문 복원 시 지난 대화와 새 턴을 가르는 구분선 라벨. */
+export const RESUME_DIVIDER = "여기까지 지난 대화";
 
 /** 채팅 — 자유 입력 placeholder. 정직한 인프라 언어 (디제틱 문구 금지). */
 export const FREE_INPUT_PLACEHOLDER = "메시지를 입력하세요";
