@@ -133,3 +133,19 @@ def index() -> FileResponse:
     if not index_html.is_file():
         raise HTTPException(status_code=404, detail="static build not found")
     return FileResponse(index_html)
+
+
+@app.get("/assets/{asset_path:path}")
+def assets(asset_path: str) -> FileResponse:
+    """B4 — 빌드 번들(js/css) + public 에셋 서빙.
+
+    StaticFiles mount 는 디렉토리를 import 시점에 고정하므로 쓰지 않고,
+    index 와 같은 request-시점 env resolve 패턴 유지 (test_static 계약).
+    """
+    static_dir = Path(os.environ.get(STATIC_DIR_ENV) or DEFAULT_STATIC_DIR)
+    assets_dir = (static_dir / "assets").resolve()
+    target = (assets_dir / asset_path).resolve()
+    # 경로 탈출(../) 방지 — assets_dir 밖이면 무조건 404.
+    if not target.is_relative_to(assets_dir) or not target.is_file():
+        raise HTTPException(status_code=404, detail="asset not found")
+    return FileResponse(target)

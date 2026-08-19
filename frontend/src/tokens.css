@@ -1,0 +1,53 @@
+/* ============================================================
+   design tokens — 색/간격/radius/타입 스케일의 단일 홈.
+   테마: 딥블루 · 모래 · 녹슨 철 · 어둑한 바다 · 몽환.
+   컴포넌트 CSS 는 리터럴 색/px 금지 — 전부 var(--token) 참조.
+   ============================================================ */
+
+:root {
+  /* --- color: abyss (어두운 남색 — 배경/바다 계열) --- */
+  --color-abyss-900: #070d1a; /* 최심부 배경 */
+  --color-abyss-700: #0d1b30; /* 표면(패널/카드) */
+  --color-abyss-500: #1a3350; /* 경계/hover 면 */
+  --color-abyss-300: #3d5a7a; /* 흐린 안개선/디바이더 */
+
+  /* --- color: sand (모래 — 본문 텍스트/말풍선 밝은 면) --- */
+  --color-sand-100: #f3ead8; /* 주 텍스트 */
+  --color-sand-300: #d9c9a8; /* 보조 텍스트 */
+  --color-sand-500: #b3a17e; /* 침묵한 텍스트/placeholder */
+
+  /* --- color: rust (녹슨 철 — 액센트/인터랙션) --- */
+  --color-rust-400: #c97b4a; /* 주 액센트 (버튼/링크/포커스) */
+  --color-rust-600: #8f4f2e; /* 액센트 눌림/딤 */
+
+  /* --- color: system (시스템 톤 전용 — warning/ban/오류)
+         NPC 말풍선 색과 절대 공유 금지: NPC 는 sand/abyss 면을 쓰고,
+         시스템 메시지는 아래 계열만 쓴다. --- */
+  --color-system-warning: #d4a944; /* 경고 (strike/주의) */
+  --color-system-ban: #a94b5e;     /* 차단/ban */
+  --color-system-error: #8a93a6;   /* 인프라 오류 — 차가운 회청, 세계 밖 목소리 */
+  --color-system-surface: #141821; /* 시스템 메시지 배경면 (무채 한색) */
+
+  /* --- spacing --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+
+  /* --- radius --- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+
+  /* --- type scale --- */
+  --font-family-base: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR",
+    system-ui, sans-serif;
+  --font-size-sm: 0.8125rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.75rem;
+  --line-height-base: 1.6;
+}

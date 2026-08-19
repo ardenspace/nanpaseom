@@ -71,6 +71,15 @@ properties) 한 곳:
   0턴 재시도 계약) + GET / 정적 서빙 (B4 조기 랜딩 — NANPASEOM_STATIC_DIR,
   기본 frontend/dist, 요청 시점 해석)
 - step 2: rules/opening.yaml — 오프닝 지시문/오류 문구 YAML
+- step 3: frontend/ — bun+Vite+React+TS scaffold. tokens.css(토큰 단일 홈),
+  tone.ts(로컬 시스템 문구 단일 홈 — SERVER_UNREACHABLE, GENERIC_ERROR),
+  public/assets/README.md(드롭인 규약). dev: uvicorn 8765 + vite 5173 proxy
+  (/session,/turn,/save-code). build = tsc + vite build → dist.
+- step 3: app/api/main.py — GET /assets/{path} 추가 (번들 서빙에 필수,
+  request-time env resolve 패턴 동일 + traversal 가드)
+- step 3: scripts/check_no_hardcoded_dialogue.py — frontend 스캔 확장
+  (NPC 대사는 tone.ts 포함 전역 금지, 한국어 리터럴은 tone.ts만 예외;
+  scan_frontend_korean/STRING_LIT_RE 테스트에서 재사용)
 
 ## Layout & Naming
 
@@ -82,7 +91,8 @@ properties) 한 곳:
 - 신규 endpoint는 기존 `POST /turn`처럼 `app/api/main.py`에서 시작,
   300줄 리뷰 트리거 시 라우터 분리.
 - dev 포트: 이 머신 점유 포트(8080 llama-server, 8000, 8081, 5433,
-  5000, 7000, 7265, 6463) 회피. 선택한 포트는 여기 기록한다.
+  5000, 7000, 7265, 6463) 회피. 선택: backend dev **8765** (uvicorn),
+  frontend dev 5173 (vite, proxy → 8765).
 
 ## Failure Behavior
 
