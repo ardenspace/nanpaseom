@@ -45,7 +45,7 @@ Contracts: (없음 — Phase 1에 랜딩된 B2 시맨틱에 대한 frontend conf
 
 Contracts: B3, B5
 
-- [ ] 계약 테스트 pin (failing부터): B5 migration 003 — save_code 컬럼,
+- [x] 계약 테스트 pin (failing부터): B5 migration 003 — save_code 컬럼,
       기존 DB 무손실 — + B3 — 코드 형식/알파벳(한 곳 정의), 발급(세션
       쿠키 필수, 밴 세션 불가), redeem(세션 상태별 시맨틱, 성공 응답
       시에만 쿠키 재바인딩, 잘못된 코드 404/오프닝 실패 503, 밴 코드

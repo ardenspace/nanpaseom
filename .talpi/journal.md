@@ -8,3 +8,7 @@
 - [2026-08-19T10:03:48Z] phase 1 reported
 - [2026-08-19T10:04:31Z] phase 2 started (base: 0d42227)
 - [2026-08-19T10:04:31Z] phase 2 contracts: none
+- [2026-08-19T10:16:56Z] phase 2 verified
+- [2026-08-19T10:17:13Z] phase 2 reported
+- [2026-08-19T10:17:14Z] phase 3 started (base: 9f2adb1)
+- [2026-08-19T10:21:52Z] phase 3 contracts pinned

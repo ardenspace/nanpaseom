@@ -56,21 +56,21 @@ properties) 한 곳:
 - `rules/opening.yaml` — 오프닝 pseudo-user 지시문 + 503 시스템 톤 문구
   (bootstrap 관련 문자열의 유일한 홈).
 
-## Prior work this phase (Phase 2)
+## Prior work this phase (Phase 3)
 
-(Phase 1 산출물 요약: POST /session/bootstrap + run_opening + GET / &
-/assets 정적 서빙 백엔드; frontend/src에 App.tsx(타이틀/채팅/차단 화면,
-resumed 렌더 포함 — 조기 랜딩), api.ts, tone.ts, tokens.css, app.css.
-테스트: tests/api/test_bootstrap.py(B2 9), test_static.py(B4 7), 공유
-conftest. 게이트 221 passed.)
+(이전 페이즈 요약: 백엔드 — POST /session/bootstrap(쿠키=신원) +
+run_opening + GET /·/assets 정적 서빙. 프론트 — App.tsx(타이틀/채팅/차단
++ 재방문 복원, 278줄), api.ts(postJson), protocol.ts, playedHint.ts,
+tone.ts, tokens.css, app.css. 테스트: test_bootstrap.py(9),
+test_static.py(7), 공유 conftest. 게이트 221 passed, 2 deselected.)
 
-- step 1: App.tsx — localStorage played-hint(`nanpaseom.played`, 힌트만 —
-  신원은 쿠키), [이어하기] 분기 + 안내 캡션, past 말풍선 dim + "여기까지
-  지난 대화" divider, 초기 스크롤 즉시/이후 smooth. tone.ts 3종 추가.
-  B2 6분기 conformance 확인 (자유입력 복원·503은 reasoned, 나머지 실 smoke).
-- fix: protocol.ts(서버 wire 타입), playedHint.ts(localStorage 힌트 헬퍼)
-  추출 — App.tsx 278줄로. 화면 3종은 결합 상태머신이라 App.tsx 유지.
-  tokens.css에 --dur-rise-slow 추가, 캡션 공통 블록 그룹 셀렉터.
+- step 1: migrations/003_save_code.sql (idempotent ALTER + UNIQUE 인덱스),
+  app/save_code.py (알파벳/형식 상수+regex 단일 소스 — 함수 없음),
+  tests/store/test_migration_003.py (B5, 그린), tests/api/test_save_code.py
+  (B3 10개, 404 failing). URL 확정: POST /save-code (쿠키 필수, 무쿠키 400
+  + 세션 민팅 금지), POST /save-code/redeem {code} (unknown/malformed 404,
+  rebind Set-Cookie는 new/resumed에만 — bootstrap의 "503에도 쿠키" 패턴
+  redeem에선 금지, 오프닝 실패 503 시 rebind 커밋 금지).
 
 ## Layout & Naming
 
