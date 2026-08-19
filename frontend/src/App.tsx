@@ -3,6 +3,7 @@
 // "Still Here" 는 게임 타이틀(영문)이라 마크업에 둔다.
 
 import { useEffect, useRef, useState } from "react";
+import { postJson } from "./api";
 import {
   BANNED_TITLE,
   CONNECTING,
@@ -15,6 +16,24 @@ import {
 } from "./tone";
 
 type Choice = { tone: string; text: string };
+
+// 서버 응답 shape (B2 bootstrap / B1 turn) — 분기는 status/kind 로.
+type BootstrapData = {
+  status: string;
+  session_uuid?: string;
+  npc_id?: string;
+  reply?: string;
+  choices?: Choice[];
+  history?: { role: string; content: string }[];
+  ban_reason?: string;
+  message?: string;
+};
+
+type TurnData = {
+  kind: string;
+  reply?: string;
+  choices?: Choice[];
+};
 
 // warning/error 는 프레임 깨는 시스템 블록 — NPC 말풍선과 시각적으로 분리 렌더.
 type Msg = {
@@ -52,24 +71,26 @@ export default function App() {
     if (busy) return;
     setBusy(true);
     setTitleError(null);
-    try {
-      const res = await fetch("/session/bootstrap", { method: "POST" });
-      const data = await res.json();
+    const r = await postJson<BootstrapData>("/session/bootstrap");
+    if (r.unreachable) {
+      setTitleError(SERVER_UNREACHABLE);
+    } else {
+      const data = r.data;
       if (data.status === "banned") {
         setBanReason(data.ban_reason ?? "");
         setScreen("banned");
       } else if (data.status === "new") {
-        setSessionUuid(data.session_uuid);
-        setNpcId(data.npc_id);
-        setMessages([{ kind: "npc", text: data.reply }]);
+        setSessionUuid(data.session_uuid ?? "");
+        setNpcId(data.npc_id ?? "");
+        setMessages([{ kind: "npc", text: data.reply ?? "" }]);
         setChoices(data.choices ?? []);
         setScreen("chat");
       } else if (data.status === "resumed") {
-        setSessionUuid(data.session_uuid);
-        setNpcId(data.npc_id);
+        setSessionUuid(data.session_uuid ?? "");
+        setNpcId(data.npc_id ?? "");
         setMessages(
           (data.history ?? []).map(
-            (h: { role: string; content: string }): Msg => ({
+            (h): Msg => ({
               kind: h.role === "user" ? "user" : "npc",
               text: h.content,
             }),
@@ -81,32 +102,25 @@ export default function App() {
         // 503 {status:"error", message} — 타이틀에 남아 재시도 가능.
         setTitleError(data.message || GENERIC_ERROR);
       }
-    } catch {
-      setTitleError(SERVER_UNREACHABLE);
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   async function sendTurn(text: string) {
     if (busy) return;
     setBusy(true);
     pushMsg("user", text);
-    try {
-      const res = await fetch("/turn", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session_uuid: sessionUuid,
-          npc_id: npcId,
-          player_input: text,
-        }),
-      });
-      if (!res.ok) {
-        pushMsg("error", GENERIC_ERROR);
-        return;
-      }
-      const data = await res.json();
+    const r = await postJson<TurnData>("/turn", {
+      session_uuid: sessionUuid,
+      npc_id: npcId,
+      player_input: text,
+    });
+    if (r.unreachable) {
+      pushMsg("error", SERVER_UNREACHABLE);
+    } else if (!r.ok) {
+      pushMsg("error", GENERIC_ERROR);
+    } else {
+      const data = r.data;
       if (data.kind === "ban") {
         // 즉시 차단 화면 — 입력/선택지 전부 봉인.
         setBanReason(data.reply ?? "");
@@ -114,17 +128,14 @@ export default function App() {
         setScreen("banned");
       } else if (data.kind === "warning") {
         // pinned 규칙: warning 은 UI 모드 불변 — 이전 npc choices 유지.
-        pushMsg("warning", data.reply);
+        pushMsg("warning", data.reply ?? "");
       } else {
-        pushMsg("npc", data.reply);
+        pushMsg("npc", data.reply ?? "");
         // 빈 choices → 자유 입력 모드 (렌더가 choices.length 로 분기).
         setChoices(data.choices ?? []);
       }
-    } catch {
-      pushMsg("error", SERVER_UNREACHABLE);
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   function submitFreeInput(e: React.FormEvent) {

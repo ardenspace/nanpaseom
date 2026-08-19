@@ -1,5 +1,5 @@
-/* 앱 화면 스타일 — 색/px 리터럴 금지, 전부 tokens.css 의 var() 참조.
-   (rem/%/vh/ms 등 비-px 치수 리터럴은 허용 — 기존 셸 관례.) */
+/* 앱 화면 스타일 — 색 리터럴 금지, 전부 tokens.css 의 var() 참조.
+   반복되는 치수/시간 리터럴도 토큰으로; 단일 사용 치수만 인라인 허용. */
 
 * {
   box-sizing: border-box;
@@ -42,10 +42,11 @@ button:disabled {
 .btn {
   padding: var(--space-3) var(--space-6);
   border-radius: var(--radius-md);
-  border: 0.0625rem solid var(--color-abyss-300);
+  border: var(--border-hairline) solid var(--color-abyss-300);
   background: var(--color-abyss-700);
   color: var(--color-sand-100);
-  transition: background 200ms ease, border-color 200ms ease, opacity 200ms ease;
+  transition: background var(--transition-ui), border-color var(--transition-ui),
+    opacity var(--transition-ui);
 }
 
 .btn--primary {
@@ -151,7 +152,7 @@ button:disabled {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-bottom: 0.0625rem solid var(--color-abyss-500);
+  border-bottom: var(--border-hairline) solid var(--color-abyss-500);
 }
 
 .chat__sprite {
@@ -185,13 +186,13 @@ button:disabled {
   border-radius: var(--radius-lg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  animation: rise-in 350ms ease-out;
+  animation: rise-in var(--dur-fade) ease-out;
 }
 
 .bubble--npc {
   align-self: flex-start;
   background: var(--color-abyss-700);
-  border: 0.0625rem solid var(--color-abyss-500);
+  border: var(--border-hairline) solid var(--color-abyss-500);
   color: var(--color-sand-100);
   border-bottom-left-radius: var(--radius-sm);
 }
@@ -215,19 +216,19 @@ button:disabled {
   font-size: var(--font-size-sm);
   text-align: center;
   white-space: pre-wrap;
-  animation: rise-in 350ms ease-out;
+  animation: rise-in var(--dur-fade) ease-out;
 }
 
 .system-msg--warning {
   color: var(--color-system-warning);
-  border-left: 0.1875rem solid var(--color-system-warning);
-  border-right: 0.1875rem solid var(--color-system-warning);
+  border-left: var(--border-accent) solid var(--color-system-warning);
+  border-right: var(--border-accent) solid var(--color-system-warning);
 }
 
 .system-msg--error {
   color: var(--color-system-error);
-  border-left: 0.1875rem solid var(--color-system-error);
-  border-right: 0.1875rem solid var(--color-system-error);
+  border-left: var(--border-accent) solid var(--color-system-error);
+  border-right: var(--border-accent) solid var(--color-system-error);
 }
 
 /* ---------- 응답 대기 표시 ---------- */
@@ -269,7 +270,7 @@ button:disabled {
 
 .chat__controls {
   padding: var(--space-4);
-  border-top: 0.0625rem solid var(--color-abyss-500);
+  border-top: var(--border-hairline) solid var(--color-abyss-500);
 }
 
 .choices {
@@ -281,12 +282,12 @@ button:disabled {
 .choice-btn {
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
-  border: 0.0625rem solid var(--color-abyss-300);
+  border: var(--border-hairline) solid var(--color-abyss-300);
   background: var(--color-abyss-700);
   color: var(--color-sand-100);
   text-align: left;
-  transition: background 200ms ease, border-color 200ms ease;
-  animation: rise-in 350ms ease-out;
+  transition: background var(--transition-ui), border-color var(--transition-ui);
+  animation: rise-in var(--dur-fade) ease-out;
 }
 
 .choice-btn:hover:enabled {
@@ -307,7 +308,7 @@ button:disabled {
   flex: 1;
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
-  border: 0.0625rem solid var(--color-abyss-300);
+  border: var(--border-hairline) solid var(--color-abyss-300);
   background: var(--color-abyss-700);
   color: var(--color-sand-100);
   font-family: inherit;
@@ -341,7 +342,7 @@ button:disabled {
   gap: var(--space-4);
   text-align: center;
   padding: var(--space-8);
-  border: 0.0625rem solid var(--color-system-ban);
+  border: var(--border-hairline) solid var(--color-system-ban);
   border-radius: var(--radius-md);
   animation: rise-in 500ms ease-out;
 }

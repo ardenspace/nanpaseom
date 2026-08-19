@@ -46,8 +46,9 @@ properties) 한 곳:
 - `tests/api/conftest.py` — 공유 `client` fixture (migrations + truncate,
   `llm_client.call` + `summarize_call` 스텁) + `make_stub_reply()`.
   신규 API 테스트는 이걸 쓴다 (기존 모듈들의 로컬 fixture는 shadow — 불변).
-- 예정: frontend API 클라이언트 모듈 (fetch 래핑, `{status:"error",message}`
-  공통 처리) — 두 번째 endpoint 호출이 생기는 즉시 추출.
+- `frontend/src/api.ts` — `postJson<T>` 공유 클라이언트 (fetch + JSON +
+  네트워크 실패 정규화 `ApiResult<T>`; 한국어 리터럴/상태 로직 없음).
+  프론트의 모든 endpoint 호출은 이걸 쓴다.
 - `app/turn/loop.py` — `build_turn_context()` + `TurnContext` dataclass:
   npc/rules/state/band/시스템 프롬프트 조립 공유 (run_turn·run_opening 공용).
 - `app/store/repo.py` — `load_last_reply_choices()`: 마지막 assistant 턴의
@@ -94,6 +95,9 @@ properties) 한 곳:
   `migrations/NNN_*.sql` 시퀀셜.
 - 신규 endpoint는 기존 `POST /turn`처럼 `app/api/main.py`에서 시작,
   300줄 리뷰 트리거 시 라우터 분리.
+- app.css는 단일 파일 유지(~359줄, 300줄 리뷰 완료): 타이틀/채팅/차단
+  화면이 하나의 시각 어휘(btn/bubble/system-msg/rise-in)를 공유하고 독립
+  소비자가 없어 분리하면 항상 같이 로드되는 응집 테마 코드가 흩어짐.
 - dev 포트: 이 머신 점유 포트(8080 llama-server, 8000, 8081, 5433,
   5000, 7000, 7265, 6463) 회피. 선택: backend dev **8765** (uvicorn),
   frontend dev 5173 (vite, proxy → 8765).

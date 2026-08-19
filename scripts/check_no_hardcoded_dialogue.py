@@ -3,17 +3,20 @@
 
 두 가지 스캔. pre-commit 또는 CI 에서 실행. 비-zero exit = 위반.
 
-1. NPC 대사 스캔 — `app/` (*.py) + `frontend/src/` 전체(tone.ts 포함)에
-   npcs/*.yaml 의 sample_lines / diegetic_fallback 텍스트가 박히면 위반.
-   NPC 텍스트는 빌더가 yaml 에서 생성한다.
-2. frontend 한글 리터럴 스캔 — `frontend/src/` 의 사용자 노출 한글 문자열은
+1. NPC 대사 스캔 — `app/` (*.py) + `frontend/` 사용자 노출 소스 전체
+   (index.html, src/, tone.ts 포함)에 npcs/*.yaml 의 sample_lines /
+   diegetic_fallback 텍스트가 박히면 위반. NPC 텍스트는 빌더가 yaml 에서 생성한다.
+2. frontend 한글 리터럴 스캔 — frontend 사용자 노출 소스의 한글 문자열은
    tone 모듈(src/tone.ts)이 단일 홈. 그 외 파일에서 발견되면 위반.
    메커니즘 (단순 유지):
    - .ts/.tsx/.js/.jsx: *문자열 리터럴* ('..', "..", `..`) 만 검사 — 주석은 자유.
    - .css/.html: 주석(/* */, <!-- -->) 제거 후 파일 전체 검사.
-   - 그 외 확장자는 스캔 안 함.
+   - 그 외 확장자는 스캔 안 함 (lockfile/json 등 자동 제외).
+   - 생성물/외부물 디렉토리(node_modules/, dist/)와 게임 에셋(public/assets/)
+     은 스캔 트리에서 제외.
 """
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -23,11 +26,15 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 NPC_DIR = ROOT / "npcs"
 APP_DIR = ROOT / "app"
-FRONTEND_SRC = ROOT / "frontend" / "src"
+FRONTEND_DIR = ROOT / "frontend"
 MIN_LEN = 6  # 너무 짧은 문자열의 우발적 매칭 회피
 
-# frontend 한글 리터럴의 유일한 허용 파일 (frontend/src 기준 상대 경로).
-TONE_MODULE = "tone.ts"
+# frontend 스캔 제외 — 생성물/외부 코드 (어느 깊이든) + 게임 에셋 (루트 상대 경로).
+FRONTEND_EXCLUDE_DIRS = {"node_modules", "dist"}
+FRONTEND_EXCLUDE_PATHS = {"public/assets"}
+
+# frontend 한글 리터럴의 유일한 허용 파일 (frontend/ 기준 상대 경로).
+TONE_MODULE = "src/tone.ts"
 
 JS_SUFFIXES = {".ts", ".tsx", ".js", ".jsx"}
 MARKUP_SUFFIXES = {".css", ".html"}
@@ -56,12 +63,23 @@ def collect_dialogue() -> set[str]:
 
 
 def frontend_files() -> list[Path]:
-    if not FRONTEND_SRC.is_dir():
+    """frontend/ 의 사용자 노출 소스 파일 (제외 트리는 walk 단계에서 prune)."""
+    if not FRONTEND_DIR.is_dir():
         return []
-    return sorted(
-        f for f in FRONTEND_SRC.rglob("*")
-        if f.is_file() and f.suffix in JS_SUFFIXES | MARKUP_SUFFIXES
-    )
+    out: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(FRONTEND_DIR):
+        base = Path(dirpath)
+        dirnames[:] = [
+            d for d in dirnames
+            if d not in FRONTEND_EXCLUDE_DIRS
+            and (base / d).relative_to(FRONTEND_DIR).as_posix()
+            not in FRONTEND_EXCLUDE_PATHS
+        ]
+        out.extend(
+            base / name for name in filenames
+            if (base / name).suffix in JS_SUFFIXES | MARKUP_SUFFIXES
+        )
+    return sorted(out)
 
 
 def scan_paths(paths: list[Path], dialogue: set[str]) -> list[tuple[Path, str]]:
@@ -75,7 +93,7 @@ def scan_paths(paths: list[Path], dialogue: set[str]) -> list[tuple[Path, str]]:
 
 
 def scan_dialogue() -> list[tuple[Path, str]]:
-    """NPC 대사 스캔 — app/*.py + frontend/src (tone.ts 포함: 대사는 거기도 금지)."""
+    """NPC 대사 스캔 — app/*.py + frontend 소스 (tone.ts 포함: 대사는 거기도 금지)."""
     targets = list(APP_DIR.rglob("*.py")) + frontend_files()
     return scan_paths(targets, collect_dialogue())
 
@@ -84,7 +102,7 @@ def scan_frontend_korean() -> list[tuple[Path, str]]:
     """frontend 한글 리터럴 스캔 — tone 모듈만 예외."""
     hits: list[tuple[Path, str]] = []
     for f in frontend_files():
-        if f.relative_to(FRONTEND_SRC).as_posix() == TONE_MODULE:
+        if f.relative_to(FRONTEND_DIR).as_posix() == TONE_MODULE:
             continue
         text = f.read_text(encoding="utf-8")
         if f.suffix in JS_SUFFIXES:
@@ -109,7 +127,7 @@ def main() -> int:
     if bad:
         print(
             "\nNPC 대사는 npcs/*.yaml 에만 (빌더가 생성). "
-            f"frontend 시스템 문구는 frontend/src/{TONE_MODULE} 에만 (CLAUDE.md).",
+            f"frontend 시스템 문구는 frontend/{TONE_MODULE} 에만 (CLAUDE.md).",
             file=sys.stderr,
         )
         return 1

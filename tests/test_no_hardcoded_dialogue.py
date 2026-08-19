@@ -1,6 +1,8 @@
 from scripts.check_no_hardcoded_dialogue import (
+    FRONTEND_DIR,
     STRING_LIT_RE,
     collect_dialogue,
+    frontend_files,
     scan_dialogue,
     scan_frontend_korean,
     scan_paths,
@@ -30,6 +32,19 @@ def test_scanner_detects_injected_line(tmp_path):
 def test_frontend_tree_has_no_korean_outside_tone_module():
     # tone.ts 외의 frontend/src 파일에 한글 리터럴이 없어야 함.
     assert scan_frontend_korean() == []
+
+
+def test_frontend_scan_tree_covers_index_html():
+    # index.html 은 사용자 노출 소스 — 스캔 트리에 포함돼야 함.
+    assert FRONTEND_DIR / "index.html" in frontend_files()
+
+
+def test_frontend_scan_tree_excludes_generated_and_assets():
+    excluded = {"node_modules", "dist"}
+    for f in frontend_files():
+        rel = f.relative_to(FRONTEND_DIR)
+        assert not excluded & set(rel.parts), f"generated tree scanned: {rel}"
+        assert not rel.as_posix().startswith("public/assets/"), f"asset scanned: {rel}"
 
 
 def test_js_string_literal_regex_finds_korean_but_ignores_comments():
