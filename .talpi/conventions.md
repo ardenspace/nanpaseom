@@ -106,6 +106,11 @@ session_uuid 전면 제거(프론트는 Set-Cookie로만 세션 유지), npc_id
   /위생 실증. manual-check.md 신규(브라우저 눈 확인 8절). 관찰 1건
   (수정 안 함): frontend/public의 README.md가 dist에 복사됨 — B5가
   서빙을 404로 막아 노출은 없음, 빌드 위생 개선 후보.
+- step 3: ADR 0033–0037 (신규 3 + 백필 2, ADR당 1커밋) +
+  mechanic-spec Identity hardening/save-code/Public surface hygiene
+  정렬(상세는 ADR 위임), mapping-spec은 매핑 행 해당 없음 — 미매핑
+  의도 리스트에 1줄. "커뮤 공개 전 재검토 목록"의 단일 서식지 = ADR
+  0034.
 
 ## Layout & Naming
 

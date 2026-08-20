@@ -50,5 +50,6 @@
 - thinking 모델 reasoning 비활성화 (`chat_template_kwargs.enable_thinking=false`) — gemma-4/qwen3 추론 토큰이 `content` 를 비우는 것 차단, lore 무관 디코딩 결정 (ADR 0029)
 - 안전 영속 스키마 (`sessions`/`safety_events`) + 응답 `kind` 판별자 — lore 무관 제작 결정 (ADR 0031)
 - Running summary 의 rolling 입력 전략 + 4k budget cap defer — 컨텍스트 관리 제작 결정 (ADR 0032)
+- 세션 신원/쿠키/공개 표면 위생 — 쿠키 단일 신원 + 서버 민팅, 쿠키 속성 4종 + bearer 수용, assets 화이트리스트 + 자동 문서 봉인, 세이브 코드 단어 프리픽스 형식, 180일 영속 쿠키 — lore 무관 배포 준비 결정 (ADR 0033–0037)
 
 이들은 망각의 섬 lore와 무관한 *제작 결정*. mapping table은 *게임 안에서 플레이어가 경험하는 메커니즘*에 한정.

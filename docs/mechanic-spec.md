@@ -93,7 +93,7 @@ Same React+Vite + FastAPI, plus PixiJS for real pixel-sprite animation, Cloudfla
 
 **Hosting:** FastAPI container + Postgres container run in Docker on the designer's always-on 48GB Mac Mini (already running Docker). Public ingress via Cloudflare Tunnel. Frontend deployed to Cloudflare Pages. Backend tier failover keeps the URL alive when the Mac Mini dips.
 
-**Persistence:** Postgres is the source of truth. localStorage is a client-side cache for fast reload and a fallback if the server is briefly unreachable. On first visit, server issues a session UUID; `session_uuid` is stored in a long-lived cookie. Schema:
+**Persistence:** Postgres is the source of truth. localStorage is a client-side cache for fast reload and a fallback if the server is briefly unreachable. On first visit, server issues a session UUID; `session_uuid` is stored in a long-lived cookie. **Identity hardening (2026-08-20, 공개 배포 준비):** 신원은 쿠키 단일 소스 — 요청 본문 세션 필드는 폐지(무시 계약), 세션 UUID는 서버만 민팅하며 세션 생성 문은 `POST /session/bootstrap` 유일, 응답 본문에 `session_uuid` 없음 (ADR 0033). 쿠키 속성은 `HttpOnly; Secure; SameSite=Lax; Max-Age=180일` — 값은 서명 없는 bearer UUID로 의식적 수용, 커뮤 공개 전 재검토 목록 포함 상세는 ADR 0034 (180일 영속 근거는 ADR 0037). Schema:
 - `sessions` (uuid pk, save_code VARCHAR(9) UNIQUE nullable, created_at, last_seen)
 - `npc_state` (session_uuid, npc_id, awareness int, memory_tags text[], summary text nullable, updated_at) — primary key (session_uuid, npc_id)
 - `global_state` (session_uuid pk, global_awareness_cached int, updated_at) — mirror for fast reads
@@ -101,7 +101,9 @@ Same React+Vite + FastAPI, plus PixiJS for real pixel-sprite animation, Cloudfla
 
 This addresses incognito-mode / localStorage-cleared sessions cleanly: the cookie uuid is the identity, not the localStorage blob.
 
-**Cross-device continuity via save code.** Cookie-only identity is single-browser. A player who starts on phone during a commute and wants to continue on a home PC needs an explicit bridge. When the player taps "세이브 코드 발급" in-game, the server mints a human-readable 9-character code (e.g. `MAST-7X2K`, `WAVE-3PQ9` — short prefix + 4-char random, excluding visually confusable characters like 0/O, 1/l) into `sessions.save_code`. On any device, entering the code in the title screen rebinds that browser's cookie to the existing session. Zero accounts, zero logins, pure recall. v1 stores plain codes in Postgres; rotation / invalidation deferred to v1.1 when abuse becomes a concern.
+**Cross-device continuity via save code.** Cookie-only identity is single-browser. A player who starts on phone during a commute and wants to continue on a home PC needs an explicit bridge. When the player taps "세이브 코드 발급" in-game, the server mints a human-readable 9-character code (e.g. `MAST-7X2K`, `WAVE-3PQ9` — 가독 단어 프리픽스(허용 알파벳 내 4자 영단어 15개 목록) + 랜덤 4자, excluding visually confusable characters like 0/O, 1/I/L; 형식 결정은 ADR 0036) into `sessions.save_code`. On any device, entering the code in the title screen rebinds that browser's cookie to the existing session. Zero accounts, zero logins, pure recall. v1 stores plain codes in Postgres; rotation / invalidation deferred to v1.1 when abuse becomes a concern. 발급은 서버가 아는 비(非)밴 세션에만 — 미지 쿠키는 401, 세션 민팅 없음 (ADR 0033).
+
+**Public surface hygiene (2026-08-20, ADR 0035):** `GET /assets/*` 는 확장자 화이트리스트(이미지/폰트/빌드 산출물만, resolve 실파일 기준 — 문서류 `md`/`txt` 는 404), FastAPI 자동 문서(`/docs`/`/redoc`/`/openapi.json`)는 비활성, `/turn` 의 `npc_id` 는 런타임 배선 목록 검증(미지 값 404, 신원 401 판정이 먼저). 401/404 사용자 문구는 `rules/identity.yaml`.
 
 **Rendering:** CSS sprite sheets with `animation-timing-function: steps()` for walk/talk cycles. No game engine in v1. Mobile treated seriously (see Mobile Support section below).
 
