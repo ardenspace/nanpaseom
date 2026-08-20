@@ -206,7 +206,7 @@ export default function App() {
       } else if (data.status === "banned") {
         pushMsg("error", data.ban_reason || GENERIC_ERROR);
       } else {
-        // 400 무쿠키 등 — 서버 문구 우선.
+        // 401 무신원 등 — 서버 문구 우선.
         pushMsg("error", data.message || GENERIC_ERROR);
       }
     }
