@@ -102,6 +102,10 @@ session_uuid 전면 제거(프론트는 Set-Cookie로만 세션 유지), npc_id
   재실패 시 tone.ts SESSION_RESTORE_FAILED). api.ts ApiResult에
   status 추가(전송 계층 사실만). frontend/src에 session_uuid 잔재 0.
   주의: 하드코딩 게이트는 주석 안 따옴표 한글도 잡음.
+- step 2: 스모크 a–g 전부 PASS (실 LLM, 8765) — 복원/redeem/위조 차단
+  /위생 실증. manual-check.md 신규(브라우저 눈 확인 8절). 관찰 1건
+  (수정 안 함): frontend/public의 README.md가 dist에 복사됨 — B5가
+  서빙을 404로 막아 노출은 없음, 빌드 위생 개선 후보.
 
 ## Layout & Naming
 
