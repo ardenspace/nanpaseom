@@ -32,3 +32,11 @@
 - [2026-08-20T04:49:27Z] phase 1 reported
 - [2026-08-20T04:49:27Z] phase 2 started (base: 72c691c)
 - [2026-08-20T04:54:20Z] phase 2 contracts pinned
+- [2026-08-20T05:09:50Z] phase 2 verified
+- [2026-08-20T05:10:11Z] phase 2 reported
+- [2026-08-20T05:10:11Z] phase 3 started (base: 8c4dd05)
+- [2026-08-20T05:10:11Z] phase 3 contracts: none
+- [2026-08-20T05:34:14Z] phase 3 verified
+- [2026-08-20T05:34:14Z] phase 3 reported
+- [2026-08-20T05:41:21Z] run review (through eb9776f): 4 findings (0 fixed, 4 noted)
+- [2026-08-20T05:42:03Z] final report sent, awaiting acceptance
