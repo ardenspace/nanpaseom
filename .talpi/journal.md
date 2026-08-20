@@ -28,3 +28,7 @@
 - [2026-08-20T04:13:05Z] run resumed: 새 런(공개 배포 신원/세션) building 진입 — spec/plan approved, phase 1 대기
 - [2026-08-20T04:13:32Z] phase 1 started (base: ba3818a)
 - [2026-08-20T04:22:01Z] phase 1 contracts pinned
+- [2026-08-20T04:48:53Z] phase 1 verified
+- [2026-08-20T04:49:27Z] phase 1 reported
+- [2026-08-20T04:49:27Z] phase 2 started (base: 72c691c)
+- [2026-08-20T04:54:20Z] phase 2 contracts pinned

@@ -87,27 +87,21 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
 - 신원 해석기 (쿠키 파싱 → UUID 검증 → 세션 존재 확인, 세션 생성 절대
   금지) — /turn·/save-code 공용, bootstrap의 파싱 단계 공유 여부 재량.
 
-## Prior work this phase (Phase 1)
+## Prior work this phase (Phase 2)
 
-- step 1: tests/api/test_identity_contracts.py — B1·B2·B6·B7 계약 박제
-  (28 tests: 22 failing 의도·6 passing 현행 pin). 세션 픽스처는 repo
-  직접 생성(`_known_session`) 패턴 — /turn 경유 금지. 기존 테스트 충돌
-  (구현 스텝에서 함께 갱신): test_turn_endpoint.py 2개 전부,
-  test_safety_endpoint.py 4개(무쿠키 /turn 의존), test_bootstrap.py
-  본문 session_uuid 단언 7곳 + 무쿠키 /turn 헬퍼 3개,
-  test_save_code.py 헬퍼/redeem 본문 단언 + Secure 재전송 대비
-  conftest env 플래그 처리 필요.
-- step 2: app/api/session_cookie.py — B6 구현 (계약 7개 green, 전체
-  스위트 251 green 유지, 잔여 failing 16 = B1/B2/B7/본문 제거 소관).
-  conftest Secure 방침 확정, main.py 상수 이전.
-- step 3: app/api/identity.py — B7 해석기 + B2 서버 전용 민팅 구현.
-  /save-code의 ensure_session 제거(모르는 쿠키 세션 생성 봉인, 응답은
-  기존 400 유지 — B3 마감은 Phase 2). 253 green / 14 failing(전부
-  step 4 소관: B1 10 + 본문 session_uuid 제거 4).
-- step 4: /turn 쿠키 단일 신원 + rules/identity.yaml + TurnResponse
-  session_uuid 필드 제거(모델 차원 강제) + 충돌 기존 테스트 6파일
-  갱신. 계약 28/28 green, 전체 267 passed 0 failed, 체크 스크립트
-  통과. frontend 미수정(Phase 3 소관).
+(Phase 1 완료 요약: B1/B2/B6/B7 green — /turn 쿠키 단일 신원(401,
+rules/identity.yaml 문구), 서버 전용 민팅, 쿠키 속성 4종
+(session_cookie.py 단일 경로), 응답 본문 무 session_uuid, npc_id
+배선 검증 404(WIRED_NPC_IDS). /save-code는 해석기 통과분만 인정하되
+응답은 아직 기존 400 — B3 마감이 이 페이즈 몫.)
+
+- step 1: tests/api/test_surface_hardening.py — B3 게이트+B5 화이트
+  리스트+Req12 박제 (21 tests: 11 failing 의도 / 10 현행 pin). B4는
+  기존 pin(test_save_code + test_identity_contracts)으로 완전 커버 —
+  신규 0건. 형식 불량 쿠키도 401 게이트에 포함 (해석기 3분류와 결
+  일치). 구현 스텝 갱신 대상: test_save_code.py 의 400 pin 1개(유일
+  정면 충돌) + docstring/주석 drift 3건(issue 400 문구, 재발급 재량
+  주석, main.py issue docstring).
 
 ## Layout & Naming
 

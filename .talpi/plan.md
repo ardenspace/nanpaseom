@@ -34,7 +34,7 @@ Contracts: B1, B2, B6, B7
 
 Contracts: B3, B4, B5
 
-- [ ] B3·B4·B5 계약 테스트 박제 — 발급 게이트(모르는 쿠키 401·민팅
+- [x] B3·B4·B5 계약 테스트 박제 — 발급 게이트(모르는 쿠키 401·민팅
       금지·0턴 발급 OK·banned 200)는 failing으로, redeem은 기존 계약 +
       새 쿠키 속성 conformance, /assets 화이트리스트(실파일 기준·
       대소문자 무시·경로 탈출)는 failing으로.
