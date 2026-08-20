@@ -20,11 +20,14 @@ class StrikeResult(BaseModel):
 
 
 def register(conn, session_uuid: str, verdict: SafetyVerdict) -> StrikeResult:
-    """성희롱/혐오 감지를 strike 로 등록. 호출 전 verdict.category != 'clean' 가정."""
+    """성희롱/혐오 감지를 strike 로 등록. 호출 전 verdict.category != 'clean' 가정.
+
+    세션 행은 만들지 않는다 (Req 8: 세션 생성 문은 POST /session/bootstrap 유일) —
+    호출자는 존재 확인된 session_uuid 만 넘길 것 (엔드포인트 신원 게이트가 보장).
+    """
     rules = load_safety_rules()
     term = verdict.matched_term or ""
 
-    repo.ensure_session(conn, session_uuid)
     # NOTE: read-modify-write 가 autocommit 하 비원자적 — 동일 session_uuid 동시 요청 시
     # warning_count 경쟁 가능 (2-strike 가 약화). ban 이 세션 스코프 soft-ban 이라 슬라이스 범위엔
     # 수용. ban 하드닝(행 잠금/원자적 UPDATE) 은 v1.1 (IP 차단과 함께).
