@@ -2,39 +2,27 @@
 
 ## Where the run stands
 
-- Phase 1–3 전부 완료·검증됨 (plan.md 체크박스 + git log가 근거).
-  계약 B1–B7 green, 전체 스위트 289 passed 0 failed, 게이트 3종 그린.
-- 스모크 런: Phase 3 step 2에서 실기동으로 a–g 전부 PASS (실 llama-
-  server 턴 포함, 이후 변경은 docs/ADR뿐이라 completion 스모크로 유효).
-- 현재 위치: **completion 단계 — 런 전체 리뷰어(fresh) 실행 후 최종
-  리포트/수락 대기로 이행 예정**. journal의 마지막 완료 이벤트가
-  기준: `run review (through <hash>)` 라인이 있으면 리뷰까지 끝난 것,
-  `final report sent, awaiting acceptance`가 있으면 사람 수락만 남은 것.
-- 소통 채널: 사람(아덴)과 Telegram으로 대화 중 (chat_id 7656702539).
-  페이즈 리포트 3건 발송됨.
+**run done — 2026-08-20 사람 수락 완료, knowledge 증류 완료 (check/
+replay 게이트 클린).** 빌드할 것 없음. 다음 세션은 새 런(talpispec)
+으로 시작 — 유력 후보는 "실제 배포" 런 (knowledge.md Open questions
+참조).
 
-## Key state
+## What this run shipped
 
-- state.md: building / 4 / 3 (cur > total = completion 신호).
-- run base: ba3818a (phase 1 base). 페이즈 base: P1 ba3818a, P2
-  72c691c, P3 8c4dd05.
-- manual-check.md: 브라우저 눈 확인 8절 — 최종 수락 요청 때 사람에게
-  건넬 것.
-- 수락 대기 중 남길 [NOTE] 후보: frontend/public/README.md가 dist에
-  복사됨 (B5가 서빙 404로 차단, 빌드 위생 개선 후보 — P3S2 관찰).
-  + 런 리뷰어가 낸 [NOTE]들 (journal 이후 기록 참조).
+난파섬 코드 기준 공개 배포 가능 상태: 쿠키 단일 신원(무신원 401,
+서버 전용 민팅, 응답 본문 무 session_uuid), 세이브 코드 발급 문단속,
+/assets 화이트리스트 + /docs 봉인, 프론트 정합(401 자동 복구 1회),
+ADR 0033–0037. 페이즈 4개(3 + acceptance-fixes), 게이트 296 passed.
 
-## Environment
+## For the next run
 
-- 로컬 LLM llama-server: 포트 8080 — 절대 죽이지 말 것.
-- dev: backend 8765 (uvicorn, NANPASEOM_INSECURE_COOKIE=1 +
-  NANPASEOM_STATIC_DIR=frontend/dist), frontend vite 5173.
-- 테스트: `docker compose up -d db` 후 `.venv/bin/pytest`.
-
-## On acceptance / rejection
-
-절차는 현행 talpirun 스킬 텍스트를 따를 것 (여기 요약하지 않음 —
-스킬이 진실). 수락 시 knowledge 증류 대상 후보: ADR 0033–0037 인용,
-게이트 커맨드들(pytest/check_yaml/hardcoded/bun build), 신원 해석기·
-session_cookie 단일 홈 사실, 열린 질문(README dist 위생, App.tsx
-분리 절단선, /save-code 401 프론트 처리 등).
+- .talpi/knowledge.md 가 증류본 (decisions/facts/open questions) —
+  다음 talpispec이 게이트 후 상속.
+- 이전 런 아카이브: .talpi/archive/2026-08-19-sub3-frontend/. 이번 런
+  아티팩트(spec/plan/conventions/manual-check)는 다음 런 시작 시 같은
+  패턴으로 archive/2026-08-20-identity-session/ 으로 이동 권장.
+- journal.md 는 append-only 영속 (아카이브 금지 — knowledge 인용
+  대상). 주의: status.sh 는 journal 의 마지막 run done/halted 로
+  라우팅하므로, 새 런 시작 시 이전 런의 'run done' 이 새 런을 가림 —
+  이번 런은 정직한 halt/resume 마커 2줄로 해소했음 (journal
+  2026-08-20T04:13 참조), 다음 런도 같은 처리 필요.

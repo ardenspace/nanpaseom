@@ -47,3 +47,5 @@
 - [2026-08-20T06:03:20Z] phase 4 reported
 - [2026-08-20T06:13:57Z] run review (through 93582ca): 2 findings (0 fixed, 2 noted)
 - [2026-08-20T06:14:29Z] final report sent, awaiting acceptance
+- [2026-08-20T07:20:51Z] knowledge distilled
+- [2026-08-20T07:20:51Z] run done
