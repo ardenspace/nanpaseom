@@ -57,13 +57,17 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
 - `rules/opening.yaml` / `rules/save_code.yaml` — bootstrap/세이브 코드
   관련 서버 발신 문구의 유일한 홈 (401 신규 문구도 rules YAML에).
 
-이번 런에서 생길 것 (구현자가 만들며 여기 등록):
+이번 런에서 생긴 것:
 
-- 세션 상수 모듈 (쿠키 이름/속성/Max-Age/dev env 플래그) — 위치 재량.
-  **env 플래그명 확정: `NANPASEOM_INSECURE_COOKIE`** (켜진 경우에만
-  Secure 생략, request 시점 resolve — NANPASEOM_STATIC_DIR 패턴).
-  Max-Age는 계약 리터럴 15552000으로 테스트가 pin (상수 import 금지 —
-  동어반복 회피).
+- `app/api/session_cookie.py` — 세션 쿠키 단일 홈: `COOKIE_NAME`,
+  `SESSION_COOKIE_MAX_AGE`(15552000), `INSECURE_COOKIE_ENV =
+  "NANPASEOM_INSECURE_COOKIE"`, 발급 단일 경로
+  `set_session_cookie(response, session_uuid)` (HttpOnly/Secure/
+  SameSite=Lax/Max-Age/Path=/, Secure는 request 시점 env resolve로
+  플래그 켜진 경우에만 생략). 쿠키 발급은 반드시 이 함수 경유.
+- 테스트 환경 Secure 방침: tests/api/conftest.py 공유 client fixture가
+  `NANPASEOM_INSECURE_COOKIE=1` setenv (http TestClient 재전송 문제).
+  Secure 단언 계약 테스트는 test 본문 delenv로 override.
 - 신원 해석기 (쿠키 파싱 → UUID 검증 → 세션 존재 확인, 세션 생성 절대
   금지) — /turn·/save-code 공용, bootstrap의 파싱 단계 공유 여부 재량.
 
@@ -77,6 +81,9 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
   본문 session_uuid 단언 7곳 + 무쿠키 /turn 헬퍼 3개,
   test_save_code.py 헬퍼/redeem 본문 단언 + Secure 재전송 대비
   conftest env 플래그 처리 필요.
+- step 2: app/api/session_cookie.py — B6 구현 (계약 7개 green, 전체
+  스위트 251 green 유지, 잔여 failing 16 = B1/B2/B7/본문 제거 소관).
+  conftest Secure 방침 확정, main.py 상수 이전.
 
 ## Layout & Naming
 

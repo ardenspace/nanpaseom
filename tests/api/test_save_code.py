@@ -30,7 +30,7 @@ import uuid
 
 import psycopg
 
-from app.api.main import SESSION_COOKIE_MAX_AGE
+from app.api.session_cookie import SESSION_COOKIE_MAX_AGE
 from app.config import DATABASE_URL
 from app.save_code import (
     SAVE_CODE_LENGTH,

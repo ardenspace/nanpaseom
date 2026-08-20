@@ -26,7 +26,18 @@ def make_stub_reply() -> TurnReply:
 
 @pytest.fixture()
 def client(monkeypatch):
-    """migration + truncate 격리, llm_call/summarize_call stub 된 TestClient."""
+    """migration + truncate 격리, llm_call/summarize_call stub 된 TestClient.
+
+    TestClient 는 http://testserver — Secure 쿠키는 http 위에서 재전송되지 않아
+    rebind→bootstrap 류 흐름이 깨진다. 로컬 dev 와 같은 예외 경로(B6 env 플래그)로
+    Secure 만 생략한다. Secure 자체를 단언하는 B6 계약 테스트는 각자
+    monkeypatch.delenv 로 이 플래그를 명시적으로 끈다 (같은 monkeypatch 라 test
+    본문의 delenv 가 이긴다).
+    """
+    from app.api.session_cookie import INSECURE_COOKIE_ENV
+
+    monkeypatch.setenv(INSECURE_COOKIE_ENV, "1")
+
     c = psycopg.connect(DATABASE_URL, autocommit=True)
     db.apply_migrations(c)
     c.execute("TRUNCATE npc_state, chat_logs, sessions, safety_events")

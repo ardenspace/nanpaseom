@@ -14,7 +14,7 @@ Contracts: B1, B2, B6, B7
       0턴/503/banned 칸, 모든 Set-Cookie 속성 4종(기존 redeem 응답
       포함 — 발급 단일 경로라 이 페이즈에서 전 표면 커버), 해석기
       우회 박제. 변경되는 동작은 failing으로 시작.
-- [ ] 세션 상수 단일 모듈 + 쿠키 속성 4종 적용 (B6 구현) — set_cookie
+- [x] 세션 상수 단일 모듈 + 쿠키 속성 4종 적용 (B6 구현) — set_cookie
       단일 경로에 HttpOnly/Secure/SameSite=Lax/Max-Age 180일, Secure
       생략용 로컬 dev env 플래그(이름 재량), 테스트 환경 Secure 처리
       방침 확정 (Delegated 참조).

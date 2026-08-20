@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from psycopg.errors import UniqueViolation
 from pydantic import BaseModel
 
+from app.api.session_cookie import COOKIE_NAME, set_session_cookie
 from app.models import TurnResponse
 from app.save_code import SAVE_CODE_RE, generate_save_code, load_save_code_rules
 from app.safety import strike
@@ -21,10 +22,8 @@ from app.turn.opening import OpeningError, load_opening_rules, run_opening
 
 app = FastAPI(title="난파섬 Sub-2b slice")
 
-# B2: 쿠키가 신원. 이번 런은 수리공 단독 — npc 는 서버가 결정.
-COOKIE_NAME = "session_uuid"
-# 브라우저 완전 종료 후에도 세션 유지 — 장수 쿠키 (session cookie 금지).
-SESSION_COOKIE_MAX_AGE = 180 * 24 * 3600  # 180일
+# B2: 쿠키가 신원 (이름/수명/속성은 app/api/session_cookie.py 단일 홈).
+# 이번 런은 수리공 단독 — npc 는 서버가 결정.
 BOOTSTRAP_NPC_ID = "surigong"
 
 # B4: Vite 빌드 산출물. env 는 request 시점 resolve (test_static 계약).
@@ -84,10 +83,7 @@ def _cookie_session_uuid(request: Request) -> str | None:
 def _bootstrap_response(payload: dict, session_uuid: str, status_code: int = 200) -> JSONResponse:
     """B2 응답 + 쿠키 발급/재발급. 503 에도 쿠키를 심어 재시도 시 같은 세션 재사용."""
     resp = JSONResponse(status_code=status_code, content=payload)
-    resp.set_cookie(
-        COOKIE_NAME, session_uuid,
-        max_age=SESSION_COOKIE_MAX_AGE, httponly=True, samesite="lax",
-    )
+    set_session_cookie(resp, session_uuid)
     return resp
 
 

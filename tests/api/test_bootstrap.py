@@ -100,7 +100,7 @@ def _session_cookie_headers(response) -> list[str]:
 
 def test_bootstrap_cookie_is_long_lived_with_max_age(client):
     """브라우저 완전 종료 후 재방문에도 세션이 이어져야 함 — session cookie 금지 pin."""
-    from app.api.main import SESSION_COOKIE_MAX_AGE
+    from app.api.session_cookie import SESSION_COOKIE_MAX_AGE
 
     r = client.post(BOOTSTRAP_URL)
     headers = _session_cookie_headers(r)
@@ -111,7 +111,7 @@ def test_bootstrap_cookie_is_long_lived_with_max_age(client):
 
 def test_bootstrap_503_retry_cookie_is_long_lived_with_max_age(client, monkeypatch):
     """503 에도 쿠키를 심어 재시도 시 같은 세션 재사용 — 그 쿠키도 장수여야 함."""
-    from app.api.main import SESSION_COOKIE_MAX_AGE
+    from app.api.session_cookie import SESSION_COOKIE_MAX_AGE
 
     _raising_llm(monkeypatch)
     r = client.post(BOOTSTRAP_URL)
