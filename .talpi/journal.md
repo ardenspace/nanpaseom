@@ -40,3 +40,10 @@
 - [2026-08-20T05:34:14Z] phase 3 reported
 - [2026-08-20T05:41:21Z] run review (through eb9776f): 4 findings (0 fixed, 4 noted)
 - [2026-08-20T05:42:03Z] final report sent, awaiting acceptance
+- [2026-08-20T05:49:39Z] acceptance declined: 런 리뷰 NOTE 4건 정리 요청 (strike 잔재, 낡은 주석, INSECURE_COOKIE 값 판정, dist README 위생)
+- [2026-08-20T05:49:57Z] phase 4 started (base: ee13ed0)
+- [2026-08-20T05:49:58Z] phase 4 contracts: none
+- [2026-08-20T06:03:20Z] phase 4 verified
+- [2026-08-20T06:03:20Z] phase 4 reported
+- [2026-08-20T06:13:57Z] run review (through 93582ca): 2 findings (0 fixed, 2 noted)
+- [2026-08-20T06:14:29Z] final report sent, awaiting acceptance

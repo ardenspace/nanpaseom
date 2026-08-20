@@ -87,7 +87,19 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
 - 신원 해석기 (쿠키 파싱 → UUID 검증 → 세션 존재 확인, 세션 생성 절대
   금지) — /turn·/save-code 공용, bootstrap의 파싱 단계 공유 여부 재량.
 
-## Prior work this phase (Phase 3)
+## Prior work this phase (Phase 4 — Acceptance fixes)
+
+(런 리뷰 NOTE 4건 정리. 계약 없음 — 기존 pin 안의 정리.)
+
+- step 1: strike.register ensure_session 제거 + 미생성 pin 테스트
+  (tests/safety/test_strike.py). 290 passed.
+- step 2: session_cookie.py `_insecure_cookie_enabled()` — falsy
+  ("", "0", "false" 대소문자/공백 무시)는 Secure 유지, falsy 6종 pin.
+  296 passed.
+- step 3: App.tsx 주석 401 갱신, 에셋 드롭인 안내 →
+  frontend/ASSETS.md (public/assets엔 .gitkeep만 — dist에 문서류 0).
+
+## Phase 3 완료 기록 (참고)
 
 (Phase 1–2 완료 요약: 백엔드 계약 B1–B7 전부 green. /turn·/save-code
 쿠키 단일 신원(무신원 401, rules/identity.yaml 문구), 서버 전용 민팅,

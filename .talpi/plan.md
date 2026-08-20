@@ -66,3 +66,20 @@ Contracts: (없음 — 기존 계약의 소비자 정합 + 문서화)
       쿠키. 레포 룰(ADR당 1커밋)에 따라 이 step은 커밋 여러 개.
       mechanic-spec 인프라 섹션에 신원 모델 갱신 (해당 시 mapping-spec
       정렬 확인).
+
+## Phase 4: Acceptance fixes
+
+런 리뷰 NOTE 4건 정리 (사람 수락 피드백 — "고칠 게 있어 보이는데, 정리해주라").
+
+Contracts: (없음 — 기존 계약 경계는 이미 pin됨, 전부 그 안의 정리)
+
+- [x] strike.register 안의 ensure_session 잔재 제거 — 세션 생성 문은
+      bootstrap뿐(Req 8)이라는 규칙을 미래 호출자도 못 깨게. 기존
+      스위트 그린 유지 확인.
+- [x] NANPASEOM_INSECURE_COOKIE 값 판정 강화 — "0"/"false"/빈 문자열은
+      꺼진 것으로 취급 (기본 Secure 계약 유지, 놀람 함정 제거). 관련
+      계약/단위 테스트 갱신.
+- [x] 프론트 정리 — App.tsx의 구 계약 주석("400 무쿠키" 류) 갱신 +
+      frontend/public/assets/README.md가 dist에 복사되지 않게 빌드
+      위생 정리 (에셋 드롭인 안내의 새 서식지 명시). bun run build +
+      하드코딩 게이트 그린.
