@@ -9,10 +9,13 @@
 - 발급: ``POST /save-code`` — request body 없음, **쿠키가 신원** (``session_uuid``).
   - 200 ``{status: "ok", save_code}`` — save_code 는 형식 만족 + ``sessions.save_code``
     (UNIQUE) 에 저장됨.
-  - 쿠키 없음 → 400 ``{status: "error", message}``. 세션 생성/쿠키 발급 없음.
+  - 쿠키 없음/형식 불량/모르는 세션 → 401 ``{status: "error", message}``.
+    세션 생성/쿠키 발급 없음 (Phase 2 B3 — 401 게이트 상세는
+    test_surface_hardening.py 가 pin).
   - 밴 세션 → 200 ``{status: "banned", ban_reason}``. 코드 미발급 (DB NULL 유지).
-  - 재발급(이미 코드 있는 세션): 기존 코드 반환 vs 재민팅은 구현 재량 —
-    "200 + 형식 만족 + 그 코드로 redeem 가능" 만 pin.
+  - 재발급(이미 코드 있는 세션): 기존 코드 반환 (idempotent — Phase 2 B3,
+    test_surface_hardening.py 가 pin). 여기서는 "200 + 형식 만족 + 그 코드로
+    redeem 가능" 을 pin.
 
 - 입력(redeem): ``POST /save-code/redeem`` — body ``{"code": str}``.
   대상 세션 상태에 따라 bootstrap 과 동일 시맨틱 (B1 이후 **본문에 session_uuid
@@ -129,7 +132,7 @@ def test_issue_without_cookie_is_error_and_creates_no_session(client):
         before = c.execute("SELECT count(*) FROM sessions").fetchone()[0]
 
     r = client.post(ISSUE_URL)
-    assert r.status_code == 400
+    assert r.status_code == 401
     body = r.json()
     assert body["status"] == "error"
     assert body["message"]
@@ -155,7 +158,8 @@ def test_issue_for_banned_session_is_banned_and_mints_no_code(client):
 
 
 def test_reissue_returns_wellformed_redeemable_code(client):
-    """재발급 동작(기존 코드 반환 vs 재민팅)은 구현 재량 — redeem 가능성만 pin."""
+    """재발급은 기존 코드 반환 (idempotent — test_surface_hardening.py 가 pin).
+    여기서는 재발급된 코드의 redeem 가능성만 pin."""
     r0 = client.post(BOOTSTRAP_URL)  # 세션 + 오프닝 (턴 ≥ 1)
     assert r0.json()["status"] == "new"
     sid = session_cookie_value(r0)

@@ -102,6 +102,11 @@ rules/identity.yaml 문구), 서버 전용 민팅, 쿠키 속성 4종
   일치). 구현 스텝 갱신 대상: test_save_code.py 의 400 pin 1개(유일
   정면 충돌) + docstring/주석 drift 3건(issue 400 문구, 재발급 재량
   주석, main.py issue docstring).
+- step 2: /save-code 발급 401 게이트 (B3 green) — 401 문구는
+  rules/identity.yaml no_session_message 로 통일, save_code.yaml 의
+  issue_no_session_message 키 제거(같은 사실 한 곳). B4 conformance
+  무변경 green. tests/api 76 passed / 8 failing(전부 step 3 소관:
+  B5 5 + Req12 3).
 
 ## Layout & Naming
 

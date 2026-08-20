@@ -55,7 +55,6 @@ def generate_save_code() -> str:
 
 class SaveCodeRules(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    issue_no_session_message: str
     redeem_not_found_message: str
 
 

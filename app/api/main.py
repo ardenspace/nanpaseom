@@ -169,18 +169,19 @@ def _mint_save_code(conn, session_uuid: str) -> str:
 
 @app.post("/save-code")
 def issue_save_code(request: Request) -> JSONResponse:
-    """B3 발급 — 신원은 해석기(B7) 통과분만. 거부 시 400 + 세션 생성/쿠키 발급 없음.
+    """B3 발급 — 신원은 해석기(B7) 통과분만. 거부 시 401 + 세션 생성/쿠키 발급 없음.
 
+    거부(쿠키 없음/형식 불량/모르는 세션)는 /turn 401 과 같은 결 — 문구도
+    rules/identity.yaml no_session_message 재사용 (같은 사실 한 곳).
     재발급은 기존 코드 반환 (idempotent — 이미 적어 둔 코드가 계속 유효).
-    거부 응답의 형태(401 문구 등)는 Phase 2 (B3) 소관 — 여기서는 미생성만 보장.
     """
     with db.connect() as conn:
         session_uuid = resolve_session(conn, request)
         if session_uuid is None:
             return JSONResponse(
-                status_code=400,
+                status_code=401,
                 content={"status": "error",
-                         "message": load_save_code_rules().issue_no_session_message},
+                         "message": load_identity_rules().no_session_message},
             )
         sess = repo.load_session(conn, session_uuid)
         if sess.banned:
