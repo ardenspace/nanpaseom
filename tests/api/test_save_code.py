@@ -30,10 +30,7 @@
   - 턴 0개 + 오프닝 생성 실패 → 503 ``{status: "error", message}``. 쿠키 무변경.
 """
 
-import psycopg
-
 from app.api.session_cookie import SESSION_COOKIE_MAX_AGE
-from app.config import DATABASE_URL
 from app.save_code import (
     SAVE_CODE_LENGTH,
     SAVE_CODE_PREFIX_WORDS,
@@ -41,7 +38,13 @@ from app.save_code import (
     generate_save_code,
 )
 from app.store import repo
-from tests.api.conftest import known_session, session_cookie_value
+from tests.api.conftest import (
+    db_conn,
+    db_save_code,
+    known_session,
+    raising_llm,
+    session_cookie_value,
+)
 
 ISSUE_URL = "/save-code"
 REDEEM_URL = "/save-code/redeem"
@@ -52,29 +55,17 @@ NPC_ID = "surigong"
 
 # ------------------------------------------------------------------- helpers
 
-def _db():
-    return psycopg.connect(DATABASE_URL, autocommit=True)
-
-
 def _set_save_code(sid: str, code: str) -> None:
     """redeem 테스트를 발급 엔드포인트와 디커플 — DB 에 직접 코드 부여."""
     assert SAVE_CODE_RE.fullmatch(code)
-    with _db() as c:
+    with db_conn() as c:
         c.execute("UPDATE sessions SET save_code = %s WHERE session_uuid = %s", (code, sid))
-
-
-def _db_save_code(sid: str) -> str | None:
-    with _db() as c:
-        row = c.execute(
-            "SELECT save_code FROM sessions WHERE session_uuid = %s", (sid,)
-        ).fetchone()
-    return row[0] if row else None
 
 
 def _banned_session() -> str:
     """밴된 세션 — repo 직접 생성 (B1 이후 /turn 은 쿠키 신원 필수라 우회하지 않는다)."""
     sid = known_session(turns=1)
-    with _db() as c:
+    with db_conn() as c:
         repo.ban_session(c, sid, "누적 경고로 대화가 차단됐습니다.")
     return sid
 
@@ -85,15 +76,6 @@ def _session_set_cookies(response) -> list[str]:
         h for h in response.headers.get_list("set-cookie")
         if h.strip().startswith(f"{COOKIE_NAME}=")
     ]
-
-
-def _raising_llm(monkeypatch):
-    import app.llm.client as llm_client
-
-    def boom(system, messages):
-        raise llm_client.LLMError("llama-server down (stub)")
-
-    monkeypatch.setattr(llm_client, "call", boom)
 
 
 # ------------------------------------------------------------ 형식 (generation)
@@ -124,11 +106,11 @@ def test_issue_returns_wellformed_code_and_persists_it(client):
     code = body["save_code"]
     assert len(code) == SAVE_CODE_LENGTH
     assert SAVE_CODE_RE.fullmatch(code)  # 4자-4자, 허용 알파벳 (O/I/L/0/1 없음)
-    assert _db_save_code(sid) == code  # UNIQUE 컬럼에 저장됨
+    assert db_save_code(sid) == code  # UNIQUE 컬럼에 저장됨
 
 
 def test_issue_without_cookie_is_error_and_creates_no_session(client):
-    with _db() as c:
+    with db_conn() as c:
         before = c.execute("SELECT count(*) FROM sessions").fetchone()[0]
 
     r = client.post(ISSUE_URL)
@@ -139,7 +121,7 @@ def test_issue_without_cookie_is_error_and_creates_no_session(client):
     assert "save_code" not in body
     assert _session_set_cookies(r) == []  # 쿠키 발급 없음
 
-    with _db() as c:
+    with db_conn() as c:
         after = c.execute("SELECT count(*) FROM sessions").fetchone()[0]
     assert after == before  # 세션 생성 없음
 
@@ -154,7 +136,7 @@ def test_issue_for_banned_session_is_banned_and_mints_no_code(client):
     assert body["status"] == "banned"
     assert body["ban_reason"]
     assert "save_code" not in body
-    assert _db_save_code(sid) is None  # 코드 미발급
+    assert db_save_code(sid) is None  # 코드 미발급
 
 
 def test_reissue_returns_wellformed_redeemable_code(client):
@@ -293,7 +275,7 @@ def test_redeem_zero_turn_opening_failure_is_503_and_keeps_cookie(client, monkey
     rb = client.post(BOOTSTRAP_URL)  # 기존 세션 B (턴 ≥ 1)
     sid_b = session_cookie_value(rb)
 
-    _raising_llm(monkeypatch)
+    raising_llm(monkeypatch)
     r = client.post(REDEEM_URL, json={"code": "WXYZ-6789"})
     assert r.status_code == 503
     body = r.json()

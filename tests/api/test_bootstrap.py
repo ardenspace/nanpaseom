@@ -28,6 +28,7 @@ import uuid
 from tests.api.conftest import (
     known_session,
     make_stub_reply,
+    raising_llm,
     session_cookie_headers,
     session_cookie_value,
 )
@@ -36,15 +37,6 @@ BOOTSTRAP_URL = "/session/bootstrap"
 TURN_URL = "/turn"
 COOKIE_NAME = "session_uuid"
 NPC_ID = "surigong"
-
-
-def _raising_llm(monkeypatch):
-    import app.llm.client as llm_client
-
-    def boom(system, messages):
-        raise llm_client.LLMError("llama-server down (stub)")
-
-    monkeypatch.setattr(llm_client, "call", boom)
 
 
 # ---------------------------------------------------------------- status: new
@@ -104,7 +96,7 @@ def test_bootstrap_503_retry_cookie_is_long_lived_with_max_age(client, monkeypat
     """503 에도 쿠키를 심어 재시도 시 같은 세션 재사용 — 그 쿠키도 장수여야 함."""
     from app.api.session_cookie import SESSION_COOKIE_MAX_AGE
 
-    _raising_llm(monkeypatch)
+    raising_llm(monkeypatch)
     r = client.post(BOOTSTRAP_URL)
     assert r.status_code == 503
     headers = session_cookie_headers(r)
@@ -116,7 +108,7 @@ def test_bootstrap_503_retry_cookie_is_long_lived_with_max_age(client, monkeypat
 # ------------------------------------------------------------- status: error
 
 def test_opening_failure_returns_503_error_shape(client, monkeypatch):
-    _raising_llm(monkeypatch)
+    raising_llm(monkeypatch)
     r = client.post(BOOTSTRAP_URL)
     assert r.status_code == 503
     body = r.json()
@@ -129,7 +121,7 @@ def test_opening_failure_returns_503_error_shape(client, monkeypatch):
 def test_failed_opening_then_retry_succeeds_as_new(client, monkeypatch):
     import app.llm.client as llm_client
 
-    _raising_llm(monkeypatch)
+    raising_llm(monkeypatch)
     r1 = client.post(BOOTSTRAP_URL)
     assert r1.status_code == 503
 
@@ -180,7 +172,7 @@ def test_resumed_with_empty_choices_is_free_input_mode(client, monkeypatch):
     # LLM 다운 → run_turn diegetic fallback: 턴은 로그되지만 choices [] (자유 입력 모드).
     sid = known_session(turns=0)
     client.cookies.set(COOKIE_NAME, sid)
-    _raising_llm(monkeypatch)
+    raising_llm(monkeypatch)
     r = client.post(TURN_URL, json={"npc_id": NPC_ID, "player_input": "안녕"})
     assert r.status_code == 200
     assert r.json()["choices"] == []

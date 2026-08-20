@@ -16,6 +16,42 @@ from app.models import Choice, TurnReply
 from app.store import db, repo
 
 
+def db_conn():
+    """테스트용 DB 관찰 커넥션 (autocommit) — 부작용 없음 단언은 DB 직접 관찰로."""
+    return psycopg.connect(DATABASE_URL, autocommit=True)
+
+
+def count_sessions() -> int:
+    with db_conn() as c:
+        return c.execute("SELECT count(*) FROM sessions").fetchone()[0]
+
+
+def session_row_exists(sid: str) -> bool:
+    with db_conn() as c:
+        row = c.execute(
+            "SELECT 1 FROM sessions WHERE session_uuid = %s", (sid,)
+        ).fetchone()
+    return row is not None
+
+
+def db_save_code(sid: str) -> str | None:
+    with db_conn() as c:
+        row = c.execute(
+            "SELECT save_code FROM sessions WHERE session_uuid = %s", (sid,)
+        ).fetchone()
+    return row[0] if row else None
+
+
+def raising_llm(monkeypatch):
+    """llm_call 이 LLMError 를 던지는 상황 — 503 경로 단언용."""
+    import app.llm.client as llm_client
+
+    def boom(system, messages):
+        raise llm_client.LLMError("llama-server down (stub)")
+
+    monkeypatch.setattr(llm_client, "call", boom)
+
+
 def make_stub_reply() -> TurnReply:
     """결정적 stub TurnReply — 테스트는 내용이 아니라 형태만 단언한다."""
     return TurnReply(

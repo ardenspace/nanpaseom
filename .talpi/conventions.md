@@ -81,9 +81,9 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
 - tests/api/conftest.py — `known_session(turns=0)` (repo 직접 생성
   세션 픽스처), `session_cookie_headers(response)` / `cookie_value(
   header)` / `session_cookie_value(response)` (Set-Cookie 관찰 유틸 —
-  응답 본문엔 sid가 더 이상 없음). 신규 테스트는 이걸 쓴다.
-  `_raising_llm(monkeypatch)` 가 test_bootstrap/test_identity_contracts
-  양쪽에 존재 — 다음 정리 기회에 conftest 승격 후보.
+  응답 본문엔 sid가 더 이상 없음), `db_conn()` / `count_sessions()` /
+  `session_row_exists(sid)` / `db_save_code(sid)` (DB 관찰),
+  `raising_llm(monkeypatch)` (LLM 실패 스텁). 신규 테스트는 이걸 쓴다.
 - 신원 해석기 (쿠키 파싱 → UUID 검증 → 세션 존재 확인, 세션 생성 절대
   금지) — /turn·/save-code 공용, bootstrap의 파싱 단계 공유 여부 재량.
 
@@ -110,6 +110,9 @@ rules/identity.yaml 문구), 서버 전용 민팅, 쿠키 속성 4종
 - step 3: /assets 화이트리스트(`ASSET_EXT_WHITELIST` frozenset, resolve
   된 실파일 suffix 소문자 판정) + FastAPI docs_url/redoc_url/openapi_url
   =None. 계약 21/21 green, 전체 288 passed 0 failed.
+- 검증 fix: traversal pin을 인코딩 변형 2종으로 교체(httpx 정규화로
+  핸들러 미도달이던 가짜 pin 해소), DB 관찰/raising_llm 헬퍼 conftest
+  승격으로 사본 3중 제거. tests/api 85 passed.
 
 ## Layout & Naming
 

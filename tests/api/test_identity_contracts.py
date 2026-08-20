@@ -26,11 +26,16 @@ Max-Age 는 계약 리터럴 15552000 (180일) 을 직접 pin — 구현 상수 
 
 import uuid
 
-import psycopg
-
-from app.config import DATABASE_URL
 from app.store import repo
-from tests.api.conftest import cookie_value, known_session, session_cookie_headers
+from tests.api.conftest import (
+    cookie_value,
+    count_sessions,
+    db_conn,
+    known_session,
+    raising_llm,
+    session_cookie_headers,
+    session_row_exists,
+)
 
 TURN_URL = "/turn"
 BOOTSTRAP_URL = "/session/bootstrap"
@@ -44,25 +49,8 @@ INSECURE_COOKIE_ENV = "NANPASEOM_INSECURE_COOKIE"  # 켜진 경우에만 Secure 
 
 # ------------------------------------------------------------------- helpers
 
-def _db():
-    return psycopg.connect(DATABASE_URL, autocommit=True)
-
-
-def _count_sessions() -> int:
-    with _db() as c:
-        return c.execute("SELECT count(*) FROM sessions").fetchone()[0]
-
-
-def _session_row_exists(sid: str) -> bool:
-    with _db() as c:
-        row = c.execute(
-            "SELECT 1 FROM sessions WHERE session_uuid = %s", (sid,)
-        ).fetchone()
-    return row is not None
-
-
 def _count_chat_logs(sid: str) -> int:
-    with _db() as c:
+    with db_conn() as c:
         return c.execute(
             "SELECT count(*) FROM chat_logs WHERE session_uuid = %s", (sid,)
         ).fetchone()[0]
@@ -70,13 +58,13 @@ def _count_chat_logs(sid: str) -> int:
 
 def _banned_session() -> str:
     sid = known_session(turns=2)
-    with _db() as c:
+    with db_conn() as c:
         repo.ban_session(c, sid, "누적 경고로 대화가 차단됐습니다.")
     return sid
 
 
 def _set_save_code(sid: str, code: str) -> None:
-    with _db() as c:
+    with db_conn() as c:
         c.execute("UPDATE sessions SET save_code = %s WHERE session_uuid = %s", (code, sid))
 
 
@@ -103,15 +91,6 @@ def _assert_full_secure_cookie(response) -> None:
         assert attrs.get("path") == "/"
 
 
-def _raising_llm(monkeypatch):
-    import app.llm.client as llm_client
-
-    def boom(system, messages):
-        raise llm_client.LLMError("llama-server down (stub)")
-
-    monkeypatch.setattr(llm_client, "call", boom)
-
-
 def _turn(client, player_input: str = "보트 수리 잘 돼?", npc_id: str = NPC_ID, **extra):
     return client.post(TURN_URL, json={"npc_id": npc_id, "player_input": player_input, **extra})
 
@@ -127,24 +106,24 @@ def _assert_401_error(response) -> None:
 # --------------------------------------------------- B1: /turn 쿠키 단일 신원
 
 def test_turn_without_cookie_is_401_and_creates_no_session(client):
-    before = _count_sessions()
+    before = count_sessions()
     r = _turn(client)
     _assert_401_error(r)
-    assert _count_sessions() == before  # 세션 생성 없음
+    assert count_sessions() == before  # 세션 생성 없음
 
 
 def test_turn_with_non_uuid_cookie_is_401_and_creates_no_session(client):
-    before = _count_sessions()
+    before = count_sessions()
     client.cookies.set(COOKIE_NAME, "not-a-uuid")
     _assert_401_error(_turn(client))
-    assert _count_sessions() == before
+    assert count_sessions() == before
 
 
 def test_turn_with_unknown_session_cookie_is_401_and_no_session_row(client):
     ghost = str(uuid.uuid4())  # UUID 형식은 유효, 서버가 모르는 세션
     client.cookies.set(COOKIE_NAME, ghost)
     _assert_401_error(_turn(client))
-    assert not _session_row_exists(ghost)  # B7 — 해석기는 세션을 만들지 않는다
+    assert not session_row_exists(ghost)  # B7 — 해석기는 세션을 만들지 않는다
 
 
 def test_turn_without_cookie_is_401_even_with_valid_body_session_uuid(client):
@@ -221,8 +200,8 @@ def test_bootstrap_unknown_cookie_is_discarded_and_server_mints_new(client):
     minted = cookie_value(headers[0])
     uuid.UUID(minted)
     assert minted != forged  # 클라이언트 값은 버려진다
-    assert _session_row_exists(minted)
-    assert not _session_row_exists(forged)  # 위조 값으로 행이 생기지 않는다
+    assert session_row_exists(minted)
+    assert not session_row_exists(forged)  # 위조 값으로 행이 생기지 않는다
 
 
 def test_bootstrap_malformed_cookie_is_discarded_and_server_mints_new(client):
@@ -232,7 +211,7 @@ def test_bootstrap_malformed_cookie_is_discarded_and_server_mints_new(client):
     assert r.json()["status"] == "new"
     minted = cookie_value(session_cookie_headers(r)[0])
     uuid.UUID(minted)  # 서버 민팅 UUID
-    assert _session_row_exists(minted)
+    assert session_row_exists(minted)
 
 
 def test_bootstrap_zero_turn_known_session_reenters_as_new_reusing_session(client):
@@ -247,13 +226,13 @@ def test_bootstrap_zero_turn_known_session_reenters_as_new_reusing_session(clien
 
 def test_bootstrap_503_keeps_session_row_and_sets_cookie(client, monkeypatch):
     """현행 유지 pin — 오프닝 실패 503 에도 민팅된 세션은 존속 + Set-Cookie."""
-    _raising_llm(monkeypatch)
+    raising_llm(monkeypatch)
     r = client.post(BOOTSTRAP_URL)
     assert r.status_code == 503
     assert r.json()["status"] == "error"
     headers = session_cookie_headers(r)
     assert headers
-    assert _session_row_exists(cookie_value(headers[0]))  # 재시도 시 같은 세션 재사용
+    assert session_row_exists(cookie_value(headers[0]))  # 재시도 시 같은 세션 재사용
 
 
 def test_bootstrap_banned_status_still_sets_cookie(client):
@@ -291,7 +270,7 @@ def test_bootstrap_banned_body_has_no_session_uuid(client):
 
 
 def test_bootstrap_503_body_has_no_session_uuid(client, monkeypatch):
-    _raising_llm(monkeypatch)
+    raising_llm(monkeypatch)
     body = client.post(BOOTSTRAP_URL).json()
     assert body["status"] == "error"
     assert "session_uuid" not in body
@@ -322,7 +301,7 @@ def test_bootstrap_banned_cookie_has_all_security_attributes(client, monkeypatch
 
 def test_bootstrap_503_cookie_has_all_security_attributes(client, monkeypatch):
     monkeypatch.delenv(INSECURE_COOKIE_ENV, raising=False)
-    _raising_llm(monkeypatch)
+    raising_llm(monkeypatch)
     r = client.post(BOOTSTRAP_URL)
     assert r.status_code == 503
     _assert_full_secure_cookie(r)
@@ -390,4 +369,4 @@ def test_save_code_issue_with_unknown_cookie_creates_no_session_row(client):
     ghost = str(uuid.uuid4())
     client.cookies.set(COOKIE_NAME, ghost)
     client.post(ISSUE_URL)
-    assert not _session_row_exists(ghost)
+    assert not session_row_exists(ghost)

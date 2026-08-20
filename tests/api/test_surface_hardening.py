@@ -22,13 +22,17 @@
 
 import uuid
 
-import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import DATABASE_URL
 from app.save_code import SAVE_CODE_RE
-from tests.api.conftest import known_session, session_cookie_headers
+from tests.api.conftest import (
+    count_sessions,
+    db_save_code,
+    known_session,
+    session_cookie_headers,
+    session_row_exists,
+)
 
 ISSUE_URL = "/save-code"
 COOKIE_NAME = "session_uuid"
@@ -36,31 +40,6 @@ STATIC_DIR_ENV = "NANPASEOM_STATIC_DIR"
 
 
 # ------------------------------------------------------------------- helpers
-
-def _db():
-    return psycopg.connect(DATABASE_URL, autocommit=True)
-
-
-def _count_sessions() -> int:
-    with _db() as c:
-        return c.execute("SELECT count(*) FROM sessions").fetchone()[0]
-
-
-def _session_row_exists(sid: str) -> bool:
-    with _db() as c:
-        row = c.execute(
-            "SELECT 1 FROM sessions WHERE session_uuid = %s", (sid,)
-        ).fetchone()
-    return row is not None
-
-
-def _db_save_code(sid: str) -> str | None:
-    with _db() as c:
-        row = c.execute(
-            "SELECT save_code FROM sessions WHERE session_uuid = %s", (sid,)
-        ).fetchone()
-    return row[0] if row else None
-
 
 def _assert_issue_401(response) -> None:
     """B3 거부 응답 계약 — /turn 401 과 같은 결 + 부작용 없음(쿠키 미발급)."""
@@ -75,24 +54,24 @@ def _assert_issue_401(response) -> None:
 # ------------------------------------------- B3: 발급은 아는 세션에만 (401 게이트)
 
 def test_issue_without_cookie_is_401_and_creates_no_session(client):
-    before = _count_sessions()
+    before = count_sessions()
     r = client.post(ISSUE_URL)
     _assert_issue_401(r)
-    assert _count_sessions() == before  # 세션 생성 없음
+    assert count_sessions() == before  # 세션 생성 없음
 
 
 def test_issue_with_malformed_cookie_is_401_and_creates_no_session(client):
-    before = _count_sessions()
+    before = count_sessions()
     client.cookies.set(COOKIE_NAME, "not-a-uuid")
     _assert_issue_401(client.post(ISSUE_URL))
-    assert _count_sessions() == before
+    assert count_sessions() == before
 
 
 def test_issue_with_unknown_session_cookie_is_401_and_no_session_row(client):
     ghost = str(uuid.uuid4())  # UUID 형식은 유효, 서버가 모르는 세션
     client.cookies.set(COOKIE_NAME, ghost)
     _assert_issue_401(client.post(ISSUE_URL))
-    assert not _session_row_exists(ghost)  # 빈 세션 민팅 후 발급 — 폐지
+    assert not session_row_exists(ghost)  # 빈 세션 민팅 후 발급 — 폐지
 
 
 def test_issue_for_known_zero_turn_session_returns_code(client):
@@ -105,7 +84,7 @@ def test_issue_for_known_zero_turn_session_returns_code(client):
     body = r.json()
     assert body["status"] == "ok"
     assert SAVE_CODE_RE.fullmatch(body["save_code"])
-    assert _db_save_code(sid) == body["save_code"]
+    assert db_save_code(sid) == body["save_code"]
 
 
 def test_reissue_returns_the_same_existing_code(client):
@@ -116,7 +95,7 @@ def test_reissue_returns_the_same_existing_code(client):
     code1 = client.post(ISSUE_URL).json()["save_code"]
     code2 = client.post(ISSUE_URL).json()["save_code"]
     assert code2 == code1
-    assert _db_save_code(sid) == code1
+    assert db_save_code(sid) == code1
 
 
 # ------------------------------------------------ B5: /assets 확장자 화이트리스트
@@ -195,9 +174,16 @@ def test_assets_extension_judged_on_resolved_real_file(static_client):
     assert DOC_LEAK not in r.text
 
 
-def test_assets_traversal_to_allowed_extension_outside_root_is_404(static_client):
-    """허용 확장자(.js)여도 실경로가 assets 루트 밖이면 404 — 탈출 방어는 별개 층."""
-    r = static_client.get("/assets/../evil.js")
+@pytest.mark.parametrize("path", ["/assets/%2e%2e/evil.js", "/assets/..%2fevil.js"])
+def test_assets_traversal_to_allowed_extension_outside_root_is_404(static_client, path):
+    """허용 확장자(.js)여도 실경로가 assets 루트 밖이면 404 — 탈출 방어는 별개 층.
+
+    평문 ``/assets/../evil.js`` 는 httpx 가 전송 전에 ``/evil.js`` 로 정규화해
+    핸들러에 닿지 않는다 (404 가 라우트 미스매치에서 나오는 가짜 pin). URL-인코딩
+    변형은 라우트 param 으로 ``../evil.js`` 로 디코딩돼 핸들러에 도달하므로
+    (test_static.py 가 실증한 패턴), 404 가 resolve 층의 escape 체크에서 나온다.
+    """
+    r = static_client.get(path)
     assert r.status_code == 404
     assert "nanpaseom-outside-assets" not in r.text
 
