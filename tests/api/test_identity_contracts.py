@@ -30,6 +30,7 @@ import psycopg
 
 from app.config import DATABASE_URL
 from app.store import repo
+from tests.api.conftest import cookie_value, known_session, session_cookie_headers
 
 TURN_URL = "/turn"
 BOOTSTRAP_URL = "/session/bootstrap"
@@ -67,26 +68,8 @@ def _count_chat_logs(sid: str) -> int:
         ).fetchone()[0]
 
 
-def _known_session(turns: int = 0) -> str:
-    """서버 민팅을 흉내낸 sessions 행 (+ 선택적 chat_logs) — /turn 경유 없이 생성.
-
-    /turn 은 새 계약에서 세션을 만들지 않으므로, 픽스처는 DB 직접 생성으로
-    bootstrap 민팅 결과를 시뮬레이트한다 (Secure 쿠키 재전송 문제와도 무관).
-    """
-    with _db() as c:
-        sid = repo.mint_session(c)
-        repo.ensure_session(c, sid)
-        for i in range(turns):
-            repo.append_chat_log(c, sid, NPC_ID, 2 * i, "user", f"질문 {i}")
-            repo.append_chat_log(
-                c, sid, NPC_ID, 2 * i + 1, "assistant", f"응답 {i}",
-                {"choices": [{"tone": "empathetic", "text": "그래"}]},
-            )
-    return sid
-
-
 def _banned_session() -> str:
-    sid = _known_session(turns=2)
+    sid = known_session(turns=2)
     with _db() as c:
         repo.ban_session(c, sid, "누적 경고로 대화가 차단됐습니다.")
     return sid
@@ -95,17 +78,6 @@ def _banned_session() -> str:
 def _set_save_code(sid: str, code: str) -> None:
     with _db() as c:
         c.execute("UPDATE sessions SET save_code = %s WHERE session_uuid = %s", (code, sid))
-
-
-def _session_cookie_headers(response) -> list[str]:
-    return [
-        h for h in response.headers.get_list("set-cookie")
-        if h.strip().startswith(f"{COOKIE_NAME}=")
-    ]
-
-
-def _cookie_value(header: str) -> str:
-    return header.split(";", 1)[0].split("=", 1)[1].strip()
 
 
 def _cookie_attrs(header: str) -> dict[str, str | None]:
@@ -119,10 +91,10 @@ def _cookie_attrs(header: str) -> dict[str, str | None]:
 
 def _assert_full_secure_cookie(response) -> None:
     """B6 — 속성 4종 + Path + 서버 민팅 UUID 값. 발급 전 표면에 공통 적용."""
-    headers = _session_cookie_headers(response)
+    headers = session_cookie_headers(response)
     assert headers, "session_uuid Set-Cookie 가 없다"
     for h in headers:
-        uuid.UUID(_cookie_value(h))  # 값 = 서버가 민팅한 UUID 문자열
+        uuid.UUID(cookie_value(h))  # 값 = 서버가 민팅한 UUID 문자열
         attrs = _cookie_attrs(h)
         assert "httponly" in attrs
         assert "secure" in attrs
@@ -149,7 +121,7 @@ def _assert_401_error(response) -> None:
     body = response.json()
     assert body["status"] == "error"
     assert body["message"]  # 솔직한 시스템 톤 — 내용은 단언하지 않음 (서식지는 rules YAML)
-    assert _session_cookie_headers(response) == []  # 401 은 쿠키를 심지 않는다
+    assert session_cookie_headers(response) == []  # 401 은 쿠키를 심지 않는다
 
 
 # --------------------------------------------------- B1: /turn 쿠키 단일 신원
@@ -177,15 +149,15 @@ def test_turn_with_unknown_session_cookie_is_401_and_no_session_row(client):
 
 def test_turn_without_cookie_is_401_even_with_valid_body_session_uuid(client):
     """남의 세션 번호를 본문에 실어도 신원이 되지 않는다 (curl 위조 차단)."""
-    victim = _known_session(turns=1)
+    victim = known_session(turns=1)
     r = _turn(client, session_uuid=victim)
     _assert_401_error(r)
     assert _count_chat_logs(victim) == 2  # 남의 세션에 턴이 적히지 않았다
 
 
 def test_turn_ignores_body_session_uuid_and_uses_cookie_identity(client):
-    mine = _known_session()
-    other = _known_session()
+    mine = known_session()
+    other = known_session()
     client.cookies.set(COOKIE_NAME, mine)
 
     r = _turn(client, session_uuid=other)
@@ -201,20 +173,20 @@ def test_turn_identity_check_precedes_npc_validation(client):
 
 
 def test_turn_unknown_npc_id_is_404(client):
-    client.cookies.set(COOKIE_NAME, _known_session())
+    client.cookies.set(COOKIE_NAME, known_session())
     r = _turn(client, npc_id="no-such-npc")
     assert r.status_code == 404
 
 
 def test_turn_unwired_yaml_npc_is_404(client):
     """"아는 NPC" = 런타임에 배선된 NPC (수리공 단독) — yaml 존재만으로는 불충분."""
-    client.cookies.set(COOKIE_NAME, _known_session())
+    client.cookies.set(COOKIE_NAME, known_session())
     r = _turn(client, npc_id="eobu")  # npcs/eobu.yaml 은 존재하지만 미배선
     assert r.status_code == 404
 
 
 def test_turn_response_body_has_no_session_uuid(client):
-    client.cookies.set(COOKIE_NAME, _known_session())
+    client.cookies.set(COOKIE_NAME, known_session())
     r = _turn(client)
     assert r.status_code == 200
     body = r.json()
@@ -224,7 +196,7 @@ def test_turn_response_body_has_no_session_uuid(client):
 
 
 def test_turn_strike_and_ban_responses_have_no_session_uuid(client):
-    client.cookies.set(COOKIE_NAME, _known_session())
+    client.cookies.set(COOKIE_NAME, known_session())
     r1 = _turn(client, player_input="이 씨발아")
     assert r1.json()["kind"] == "warning"
     assert "session_uuid" not in r1.json()
@@ -244,9 +216,9 @@ def test_bootstrap_unknown_cookie_is_discarded_and_server_mints_new(client):
     assert r.status_code == 200
     assert r.json()["status"] == "new"
 
-    headers = _session_cookie_headers(r)
+    headers = session_cookie_headers(r)
     assert headers
-    minted = _cookie_value(headers[0])
+    minted = cookie_value(headers[0])
     uuid.UUID(minted)
     assert minted != forged  # 클라이언트 값은 버려진다
     assert _session_row_exists(minted)
@@ -258,19 +230,19 @@ def test_bootstrap_malformed_cookie_is_discarded_and_server_mints_new(client):
     r = client.post(BOOTSTRAP_URL)
     assert r.status_code == 200
     assert r.json()["status"] == "new"
-    minted = _cookie_value(_session_cookie_headers(r)[0])
+    minted = cookie_value(session_cookie_headers(r)[0])
     uuid.UUID(minted)  # 서버 민팅 UUID
     assert _session_row_exists(minted)
 
 
 def test_bootstrap_zero_turn_known_session_reenters_as_new_reusing_session(client):
     """현행 유지 pin — 아는 세션 + 턴 0개 → 오프닝 (재)시도, 같은 세션 재사용."""
-    sid = _known_session(turns=0)
+    sid = known_session(turns=0)
     client.cookies.set(COOKIE_NAME, sid)
     r = client.post(BOOTSTRAP_URL)
     assert r.status_code == 200
     assert r.json()["status"] == "new"
-    assert _cookie_value(_session_cookie_headers(r)[0]) == sid
+    assert cookie_value(session_cookie_headers(r)[0]) == sid
 
 
 def test_bootstrap_503_keeps_session_row_and_sets_cookie(client, monkeypatch):
@@ -279,9 +251,9 @@ def test_bootstrap_503_keeps_session_row_and_sets_cookie(client, monkeypatch):
     r = client.post(BOOTSTRAP_URL)
     assert r.status_code == 503
     assert r.json()["status"] == "error"
-    headers = _session_cookie_headers(r)
+    headers = session_cookie_headers(r)
     assert headers
-    assert _session_row_exists(_cookie_value(headers[0]))  # 재시도 시 같은 세션 재사용
+    assert _session_row_exists(cookie_value(headers[0]))  # 재시도 시 같은 세션 재사용
 
 
 def test_bootstrap_banned_status_still_sets_cookie(client):
@@ -290,7 +262,7 @@ def test_bootstrap_banned_status_still_sets_cookie(client):
     r = client.post(BOOTSTRAP_URL)
     assert r.status_code == 200
     assert r.json()["status"] == "banned"
-    assert _session_cookie_headers(r)
+    assert session_cookie_headers(r)
 
 
 def test_bootstrap_new_body_has_no_session_uuid(client):
@@ -302,7 +274,7 @@ def test_bootstrap_new_body_has_no_session_uuid(client):
 
 
 def test_bootstrap_resumed_body_has_no_session_uuid(client):
-    client.cookies.set(COOKIE_NAME, _known_session(turns=1))
+    client.cookies.set(COOKIE_NAME, known_session(turns=1))
     r = client.post(BOOTSTRAP_URL)
     body = r.json()
     assert body["status"] == "resumed"
@@ -334,7 +306,7 @@ def test_bootstrap_new_cookie_has_all_security_attributes(client, monkeypatch):
 
 def test_bootstrap_resumed_cookie_has_all_security_attributes(client, monkeypatch):
     monkeypatch.delenv(INSECURE_COOKIE_ENV, raising=False)
-    client.cookies.set(COOKIE_NAME, _known_session(turns=1))
+    client.cookies.set(COOKIE_NAME, known_session(turns=1))
     r = client.post(BOOTSTRAP_URL)
     assert r.json()["status"] == "resumed"
     _assert_full_secure_cookie(r)
@@ -359,7 +331,7 @@ def test_bootstrap_503_cookie_has_all_security_attributes(client, monkeypatch):
 def test_redeem_resumed_rebind_cookie_has_all_security_attributes(client, monkeypatch):
     """발급 단일 경로 계약 — redeem 성공 rebind 도 같은 속성 4종을 받는다."""
     monkeypatch.delenv(INSECURE_COOKIE_ENV, raising=False)
-    sid = _known_session(turns=1)
+    sid = known_session(turns=1)
     _set_save_code(sid, "QRST-2345")
     r = client.post(REDEEM_URL, json={"code": "QRST-2345"})
     assert r.status_code == 200
@@ -369,7 +341,7 @@ def test_redeem_resumed_rebind_cookie_has_all_security_attributes(client, monkey
 
 def test_redeem_new_rebind_cookie_has_all_security_attributes(client, monkeypatch):
     monkeypatch.delenv(INSECURE_COOKIE_ENV, raising=False)
-    sid = _known_session(turns=0)
+    sid = known_session(turns=0)
     _set_save_code(sid, "BCDE-FGHJ")
     r = client.post(REDEEM_URL, json={"code": "BCDE-FGHJ"})
     assert r.status_code == 200
@@ -381,7 +353,7 @@ def test_insecure_env_flag_omits_only_secure(client, monkeypatch):
     """로컬 개발 예외 하나 — 플래그가 켜진 경우에만 Secure 생략, 나머지 속성 유지."""
     monkeypatch.setenv(INSECURE_COOKIE_ENV, "1")
     r = client.post(BOOTSTRAP_URL)
-    headers = _session_cookie_headers(r)
+    headers = session_cookie_headers(r)
     assert headers
     for h in headers:
         attrs = _cookie_attrs(h)
@@ -394,14 +366,14 @@ def test_insecure_env_flag_omits_only_secure(client, monkeypatch):
 
 def test_redeem_success_bodies_have_no_session_uuid(client):
     """자격증명은 redeem 응답 본문에도 없다 (기기 이동은 쿠키 rebind 로 이어진다)."""
-    sid = _known_session(turns=1)
+    sid = known_session(turns=1)
     _set_save_code(sid, "MNPQ-6789")
     body = client.post(REDEEM_URL, json={"code": "MNPQ-6789"}).json()
     assert body["status"] == "resumed"
     assert "session_uuid" not in body
 
     client.cookies.clear()
-    sid0 = _known_session(turns=0)
+    sid0 = known_session(turns=0)
     _set_save_code(sid0, "TUVW-2346")
     body0 = client.post(REDEEM_URL, json={"code": "TUVW-2346"}).json()
     assert body0["status"] == "new"

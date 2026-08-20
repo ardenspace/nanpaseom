@@ -45,12 +45,23 @@ def known_session(turns: int = 0, npc_id: str = "surigong") -> str:
     return sid
 
 
+def session_cookie_headers(response) -> list[str]:
+    """응답의 session_uuid Set-Cookie 헤더 전부 — 속성 단언/부재(`== []`) 단언용."""
+    return [
+        h for h in response.headers.get_list("set-cookie")
+        if h.strip().startswith(f"{COOKIE_NAME}=")
+    ]
+
+
+def cookie_value(header: str) -> str:
+    """Set-Cookie 헤더 한 줄에서 쿠키 값만 추출."""
+    return header.split(";", 1)[0].split("=", 1)[1].strip()
+
+
 def session_cookie_value(response) -> str | None:
     """응답 Set-Cookie 헤더에서 session_uuid 값 추출 (본문에는 더 이상 없다)."""
-    for h in response.headers.get_list("set-cookie"):
-        if h.strip().startswith(f"{COOKIE_NAME}="):
-            return h.split(";", 1)[0].split("=", 1)[1].strip()
-    return None
+    headers = session_cookie_headers(response)
+    return cookie_value(headers[0]) if headers else None
 
 
 @pytest.fixture()

@@ -25,7 +25,12 @@
 
 import uuid
 
-from tests.api.conftest import known_session, make_stub_reply, session_cookie_value
+from tests.api.conftest import (
+    known_session,
+    make_stub_reply,
+    session_cookie_headers,
+    session_cookie_value,
+)
 
 BOOTSTRAP_URL = "/session/bootstrap"
 TURN_URL = "/turn"
@@ -84,19 +89,12 @@ def test_zero_turn_session_reentry_is_new_and_reuses_session(client):
 
 # ----------------------------------------------------------- 쿠키 수명 (장수)
 
-def _session_cookie_headers(response) -> list[str]:
-    return [
-        h for h in response.headers.get_list("set-cookie")
-        if h.strip().startswith(f"{COOKIE_NAME}=")
-    ]
-
-
 def test_bootstrap_cookie_is_long_lived_with_max_age(client):
     """브라우저 완전 종료 후 재방문에도 세션이 이어져야 함 — session cookie 금지 pin."""
     from app.api.session_cookie import SESSION_COOKIE_MAX_AGE
 
     r = client.post(BOOTSTRAP_URL)
-    headers = _session_cookie_headers(r)
+    headers = session_cookie_headers(r)
     assert headers
     for h in headers:
         assert f"Max-Age={SESSION_COOKIE_MAX_AGE}" in h
@@ -109,7 +107,7 @@ def test_bootstrap_503_retry_cookie_is_long_lived_with_max_age(client, monkeypat
     _raising_llm(monkeypatch)
     r = client.post(BOOTSTRAP_URL)
     assert r.status_code == 503
-    headers = _session_cookie_headers(r)
+    headers = session_cookie_headers(r)
     assert headers
     for h in headers:
         assert f"Max-Age={SESSION_COOKIE_MAX_AGE}" in h

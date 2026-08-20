@@ -79,8 +79,11 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
 - `app/api/main.py` — `WIRED_NPC_IDS = ("surigong",)` 배선 NPC 목록
   단일 홈 (BOOTSTRAP_NPC_ID 파생).
 - tests/api/conftest.py — `known_session(turns=0)` (repo 직접 생성
-  세션 픽스처), `session_cookie_value(response)` (Set-Cookie에서 sid
-  추출 — 응답 본문엔 더 이상 없음). 신규 테스트는 이걸 쓴다.
+  세션 픽스처), `session_cookie_headers(response)` / `cookie_value(
+  header)` / `session_cookie_value(response)` (Set-Cookie 관찰 유틸 —
+  응답 본문엔 sid가 더 이상 없음). 신규 테스트는 이걸 쓴다.
+  `_raising_llm(monkeypatch)` 가 test_bootstrap/test_identity_contracts
+  양쪽에 존재 — 다음 정리 기회에 conftest 승격 후보.
 - 신원 해석기 (쿠키 파싱 → UUID 검증 → 세션 존재 확인, 세션 생성 절대
   금지) — /turn·/save-code 공용, bootstrap의 파싱 단계 공유 여부 재량.
 
@@ -112,6 +115,11 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
   `app/safety`, `app/turn`, `migrations/NNN_*.sql` 시퀀셜.
 - `app/api/main.py` 는 300줄 리뷰 트리거 대상 — 신원 해석기/세션 상수
   분리로 자연 감량 예상, 분리 시 라우터 단위.
+- tests/api/test_identity_contracts.py 는 393줄 단일 파일 유지 (300줄
+  리뷰 완료): B1·B2·B6·B7은 같은 spec 동결(쿠키 단일 신원)의 상호참조
+  계약이고 테스트가 계약 경계를 넘나들어(redeem rebind의 B6 단언 등)
+  분리하면 로컬 단언 헬퍼의 승격/중복만 늘고 계약 pin 모듈의
+  자기완결성이 깨짐.
 - frontend: bun + Vite + React, `frontend/src/`. App.tsx(~498줄)는 300줄
   리뷰 통과 상태(화면 3개가 세션 상태 머신 하나 공유) — 이번 런 수정
   후에도 같은 사유면 유지 OK.
