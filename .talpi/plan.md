@@ -52,7 +52,7 @@ Contracts: B3, B4, B5
 
 Contracts: (없음 — 기존 계약의 소비자 정합 + 문서화)
 
-- [ ] 프론트 정합 (Req 10) — /turn 본문에서 session_uuid 제거, 응답
+- [x] 프론트 정합 (Req 10) — /turn 본문에서 session_uuid 제거, 응답
       본문 session_uuid 미의존화, 401 → 자동 재bootstrap 1회 + 실패 시
       솔직한 시스템 톤 오류 (무한 루프 금지). 하드코딩 게이트
       (frontend 스캔) 그린 유지.

@@ -4,7 +4,8 @@
 
 export type ApiResult<T> =
   // 서버가 JSON 으로 응답 — HTTP 상태와 바디를 그대로 전달.
-  | { unreachable: false; ok: boolean; data: T }
+  // status 는 호출측 분기용 (예: /turn 401 → 재bootstrap) — 전송 계층 사실만.
+  | { unreachable: false; ok: boolean; status: number; data: T }
   // 네트워크 단절 or 비-JSON 응답 — 호출측은 SERVER_UNREACHABLE 로 노출.
   | { unreachable: true };
 
@@ -24,7 +25,12 @@ export async function postJson<T>(
           },
     );
     // 503 {status:"error", message} 도 JSON 바디 — ok=false 로 그대로 넘긴다.
-    return { unreachable: false, ok: res.ok, data: (await res.json()) as T };
+    return {
+      unreachable: false,
+      ok: res.ok,
+      status: res.status,
+      data: (await res.json()) as T,
+    };
   } catch {
     return { unreachable: true };
   }

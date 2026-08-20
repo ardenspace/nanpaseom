@@ -3,7 +3,7 @@
 // "Still Here" 는 게임 타이틀(영문)이라 마크업에 둔다.
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { postJson } from "./api";
+import { postJson, type ApiResult } from "./api";
 import { markPlayedHint, readPlayedHint } from "./playedHint";
 import type {
   BootstrapData,
@@ -38,6 +38,7 @@ import {
   SAVE_CODE_SUBMIT,
   SEND_BUTTON,
   SERVER_UNREACHABLE,
+  SESSION_RESTORE_FAILED,
   START_BUTTON,
 } from "./tone";
 
@@ -64,7 +65,6 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [choices, setChoices] = useState<Choice[]>([]);
-  const [sessionUuid, setSessionUuid] = useState("");
   const [npcId, setNpcId] = useState("");
   const [banReason, setBanReason] = useState("");
   const [draft, setDraft] = useState("");
@@ -99,7 +99,6 @@ export default function App() {
    *  wire shape 를 쓰는 이유가 이 공유다 (RedeemData = BootstrapData). */
   function enterChat(data: BootstrapData) {
     markPlayedHint();
-    setSessionUuid(data.session_uuid ?? "");
     setNpcId(data.npc_id ?? "");
     if (data.status === "new") {
       setMessages([{ kind: "npc", text: data.reply ?? "" }]);
@@ -229,34 +228,74 @@ export default function App() {
     setSaveCodeCopied(false);
   }
 
+  /** turn 응답을 화면에 반영. 401 처리(자동 재bootstrap)는 sendTurn 소유 —
+   *  여기 도달한 !ok 는 그 외 오류다. */
+  function applyTurn(r: ApiResult<TurnData>) {
+    if (r.unreachable) {
+      pushMsg("error", SERVER_UNREACHABLE);
+      return;
+    }
+    if (!r.ok) {
+      pushMsg("error", GENERIC_ERROR);
+      return;
+    }
+    const data = r.data;
+    if (data.kind === "ban") {
+      // 즉시 차단 화면 — 입력/선택지 전부 봉인.
+      setBanReason(data.reply ?? "");
+      setChoices([]);
+      setScreen("banned");
+    } else if (data.kind === "warning") {
+      // pinned 규칙: warning 은 UI 모드 불변 — 이전 npc choices 유지.
+      pushMsg("warning", data.reply ?? "");
+    } else {
+      pushMsg("npc", data.reply ?? "");
+      // 빈 choices → 자유 입력 모드 (렌더가 choices.length 로 분기).
+      setChoices(data.choices ?? []);
+    }
+  }
+
   async function sendTurn(text: string) {
     if (busy) return;
     setBusy(true);
     pushMsg("user", text);
+    // 신원은 쿠키가 전담 — 본문은 {npc_id, player_input} 뿐 (B1/B6).
     const r = await postJson<TurnData>("/turn", {
-      session_uuid: sessionUuid,
       npc_id: npcId,
       player_input: text,
     });
-    if (r.unreachable) {
-      pushMsg("error", SERVER_UNREACHABLE);
-    } else if (!r.ok) {
-      pushMsg("error", GENERIC_ERROR);
-    } else {
-      const data = r.data;
-      if (data.kind === "ban") {
-        // 즉시 차단 화면 — 입력/선택지 전부 봉인.
-        setBanReason(data.reply ?? "");
+    if (!r.unreachable && r.status === 401) {
+      // 서버가 세션을 모름(쿠키 소멸 등) — recoverable. 자동 재bootstrap 1회.
+      // 쿠키는 편의, 코드가 열쇠 — 세션이 없으면 새로 시작이 맞다.
+      const b = await postJson<BootstrapData>("/session/bootstrap");
+      if (b.unreachable) {
+        pushMsg("error", SERVER_UNREACHABLE);
+      } else if (b.data.status === "banned") {
+        setBanReason(b.data.ban_reason ?? "");
         setChoices([]);
         setScreen("banned");
-      } else if (data.kind === "warning") {
-        // pinned 규칙: warning 은 UI 모드 불변 — 이전 npc choices 유지.
-        pushMsg("warning", data.reply ?? "");
+      } else if (b.data.status === "resumed") {
+        // 세션 복구됨 — 보류된 턴을 정확히 1회 재시도. 또 401 이면
+        // 재bootstrap 없이 정직하게 알리고 멈춘다 (무한 루프 금지).
+        const retry = await postJson<TurnData>("/turn", {
+          npc_id: npcId,
+          player_input: text,
+        });
+        if (!retry.unreachable && retry.status === 401) {
+          pushMsg("error", SESSION_RESTORE_FAILED);
+        } else {
+          applyTurn(retry);
+        }
+      } else if (b.data.status === "new") {
+        // 서버에 이 기기의 세션이 없었음 — 새 세션의 오프닝으로 진입.
+        // 보내려던 입력은 사라진 세션 소속이라 재전송하지 않는다.
+        enterChat(b.data);
       } else {
-        pushMsg("npc", data.reply ?? "");
-        // 빈 choices → 자유 입력 모드 (렌더가 choices.length 로 분기).
-        setChoices(data.choices ?? []);
+        // 503 {status:"error", message} — 서버 문구 우선.
+        pushMsg("error", b.data.message || GENERIC_ERROR);
       }
+    } else {
+      applyTurn(r);
     }
     setBusy(false);
   }

@@ -88,5 +88,10 @@ export const FREE_INPUT_PLACEHOLDER = "메시지를 입력하세요";
 /** 채팅 — 자유 입력 전송 버튼. */
 export const SEND_BUTTON = "보내기";
 
+/** 채팅 — /turn 401 후 자동 재bootstrap 까지 했는데도 턴이 다시 거부됐을 때.
+ *  재시도는 정확히 1회(무한 루프 금지) — 이후는 정직하게 알리고 멈춘다. */
+export const SESSION_RESTORE_FAILED =
+  "세션을 복구하지 못했습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
+
 /** 차단 화면 헤딩 — 상세 사유(ban_reason)는 서버가 준다. */
 export const BANNED_TITLE = "접속이 차단되었습니다";

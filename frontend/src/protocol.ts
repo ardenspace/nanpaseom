@@ -4,9 +4,9 @@
 export type Choice = { tone: string; text: string };
 
 // B2 bootstrap 응답 — 분기는 status 로 (new / resumed / banned / error).
+// 신원(세션)은 본문에 없다 — HttpOnly 쿠키로만 오간다 (B6).
 export type BootstrapData = {
   status: string;
-  session_uuid?: string;
   npc_id?: string;
   reply?: string;
   choices?: Choice[];

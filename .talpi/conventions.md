@@ -87,32 +87,21 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
 - 신원 해석기 (쿠키 파싱 → UUID 검증 → 세션 존재 확인, 세션 생성 절대
   금지) — /turn·/save-code 공용, bootstrap의 파싱 단계 공유 여부 재량.
 
-## Prior work this phase (Phase 2)
+## Prior work this phase (Phase 3)
 
-(Phase 1 완료 요약: B1/B2/B6/B7 green — /turn 쿠키 단일 신원(401,
-rules/identity.yaml 문구), 서버 전용 민팅, 쿠키 속성 4종
-(session_cookie.py 단일 경로), 응답 본문 무 session_uuid, npc_id
-배선 검증 404(WIRED_NPC_IDS). /save-code는 해석기 통과분만 인정하되
-응답은 아직 기존 400 — B3 마감이 이 페이즈 몫.)
+(Phase 1–2 완료 요약: 백엔드 계약 B1–B7 전부 green. /turn·/save-code
+쿠키 단일 신원(무신원 401, rules/identity.yaml 문구), 서버 전용 민팅,
+쿠키 속성 4종(session_cookie.py `set_session_cookie` 단일 경로,
+NANPASEOM_INSECURE_COOKIE로 Secure만 생략 가능), 응답 본문에서
+session_uuid 전면 제거(프론트는 Set-Cookie로만 세션 유지), npc_id
+배선 검증 404, /assets 확장자 화이트리스트, /docs 봉인. 전체 스위트
+289 passed 0 failed.)
 
-- step 1: tests/api/test_surface_hardening.py — B3 게이트+B5 화이트
-  리스트+Req12 박제 (21 tests: 11 failing 의도 / 10 현행 pin). B4는
-  기존 pin(test_save_code + test_identity_contracts)으로 완전 커버 —
-  신규 0건. 형식 불량 쿠키도 401 게이트에 포함 (해석기 3분류와 결
-  일치). 구현 스텝 갱신 대상: test_save_code.py 의 400 pin 1개(유일
-  정면 충돌) + docstring/주석 drift 3건(issue 400 문구, 재발급 재량
-  주석, main.py issue docstring).
-- step 2: /save-code 발급 401 게이트 (B3 green) — 401 문구는
-  rules/identity.yaml no_session_message 로 통일, save_code.yaml 의
-  issue_no_session_message 키 제거(같은 사실 한 곳). B4 conformance
-  무변경 green. tests/api 76 passed / 8 failing(전부 step 3 소관:
-  B5 5 + Req12 3).
-- step 3: /assets 화이트리스트(`ASSET_EXT_WHITELIST` frozenset, resolve
-  된 실파일 suffix 소문자 판정) + FastAPI docs_url/redoc_url/openapi_url
-  =None. 계약 21/21 green, 전체 288 passed 0 failed.
-- 검증 fix: traversal pin을 인코딩 변형 2종으로 교체(httpx 정규화로
-  핸들러 미도달이던 가짜 pin 해소), DB 관찰/raising_llm 헬퍼 conftest
-  승격으로 사본 3중 제거. tests/api 85 passed.
+- step 1: 프론트 정합 — App.tsx sessionUuid 상태/본문 필드 제거,
+  401 → 재bootstrap 1회(resumed면 보류 턴 재시도, new면 enterChat,
+  재실패 시 tone.ts SESSION_RESTORE_FAILED). api.ts ApiResult에
+  status 추가(전송 계층 사실만). frontend/src에 session_uuid 잔재 0.
+  주의: 하드코딩 게이트는 주석 안 따옴표 한글도 잡음.
 
 ## Layout & Naming
 
@@ -125,6 +114,10 @@ rules/identity.yaml 문구), 서버 전용 민팅, 쿠키 속성 4종
   계약이고 테스트가 계약 경계를 넘나들어(redeem rebind의 B6 단언 등)
   분리하면 로컬 단언 헬퍼의 승격/중복만 늘고 계약 pin 모듈의
   자기완결성이 깨짐.
+- frontend: App.tsx는 534줄 유지 (300줄 리뷰 재확인): 증가분은 화면
+  3개가 공유하는 상태 머신 내부의 401 복구 경로(sendTurn+applyTurn) —
+  분리하면 상태 setter 배선만 늘어남. 다음 절단선은 applyTurn+sendTurn
+  훅 추출.
 - frontend: bun + Vite + React, `frontend/src/`. App.tsx(~498줄)는 300줄
   리뷰 통과 상태(화면 3개가 세션 상태 머신 하나 공유) — 이번 런 수정
   후에도 같은 사유면 유지 OK.
