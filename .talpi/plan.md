@@ -41,7 +41,7 @@ Contracts: B3, B4, B5
 - [x] /save-code 발급 게이트 구현 (B3) + redeem conformance 확인 (B4 —
       rebind Set-Cookie가 Phase 1 단일 경로의 속성 4종을 받는지, 503
       rebind 금지·banned 무rebind 기존 유지).
-- [ ] /assets 확장자 화이트리스트 구현 + FastAPI 자동 문서 엔드포인트
+- [x] /assets 확장자 화이트리스트 구현 + FastAPI 자동 문서 엔드포인트
       (/docs·/redoc·/openapi.json) 비활성화 (B5, Req 9·12).
 
 ## Phase 3: 프론트 정합 + 스모크 + 기록

@@ -107,6 +107,9 @@ rules/identity.yaml 문구), 서버 전용 민팅, 쿠키 속성 4종
   issue_no_session_message 키 제거(같은 사실 한 곳). B4 conformance
   무변경 green. tests/api 76 passed / 8 failing(전부 step 3 소관:
   B5 5 + Req12 3).
+- step 3: /assets 화이트리스트(`ASSET_EXT_WHITELIST` frozenset, resolve
+  된 실파일 suffix 소문자 판정) + FastAPI docs_url/redoc_url/openapi_url
+  =None. 계약 21/21 green, 전체 288 passed 0 failed.
 
 ## Layout & Naming
 

@@ -20,7 +20,8 @@ from app.store import db, repo
 from app.turn.loop import run_turn
 from app.turn.opening import OpeningError, load_opening_rules, run_opening
 
-app = FastAPI(title="난파섬 Sub-2b slice")
+# Req 12: 자동 문서(/docs, /redoc, /openapi.json) 비활성화 — 공개 표면에서 스키마 노출 차단.
+app = FastAPI(title="난파섬 Sub-2b slice", docs_url=None, redoc_url=None, openapi_url=None)
 
 # B1/B2: 쿠키가 신원 (이름/수명/속성은 app/api/session_cookie.py 단일 홈).
 # 런타임에 배선된 NPC 목록 단일 홈 — yaml 존재만으로는 불충분 (eobu.yaml 이 있어도 404).
@@ -31,6 +32,15 @@ BOOTSTRAP_NPC_ID = WIRED_NPC_IDS[0]
 # B4: Vite 빌드 산출물. env 는 request 시점 resolve (test_static 계약).
 STATIC_DIR_ENV = "NANPASEOM_STATIC_DIR"
 DEFAULT_STATIC_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+# B5: /assets 확장자 화이트리스트 — 이미지 + 폰트 + 빌드 산출물만.
+# 그 외 확장자·무확장자(문서류 md/txt 포함)는 실파일이 있어도 404.
+# 판정은 resolve 된 실파일 suffix 기준 + 소문자 정규화 (심링크 우회 차단).
+ASSET_EXT_WHITELIST = frozenset({
+    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico",  # 이미지
+    ".woff", ".woff2",                                          # 폰트
+    ".js", ".css", ".map",                                      # 빌드 산출물
+})
 
 
 class TurnRequest(BaseModel):
@@ -248,5 +258,8 @@ def assets(asset_path: str) -> FileResponse:
     target = (assets_dir / asset_path).resolve()
     # 경로 탈출(../) 방지 — assets_dir 밖이면 무조건 404.
     if not target.is_relative_to(assets_dir) or not target.is_file():
+        raise HTTPException(status_code=404, detail="asset not found")
+    # B5: 확장자 화이트리스트 — resolve 된 실파일 suffix 기준(심링크 우회 차단), 대소문자 무시.
+    if target.suffix.lower() not in ASSET_EXT_WHITELIST:
         raise HTTPException(status_code=404, detail="asset not found")
     return FileResponse(target)
