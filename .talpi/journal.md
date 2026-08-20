@@ -21,3 +21,8 @@
 - [2026-08-19T12:55:10Z] acceptance received
 - [2026-08-19T12:56:06Z] knowledge distilled
 - [2026-08-19T12:56:06Z] run done
+- [2026-08-20] new run started: 공개 배포용 신원/세션 정리 (spec conversation begun); 이전 런 아티팩트 → archive/2026-08-19-sub3-frontend
+- [2026-08-20] spec approved
+- [2026-08-20] plan approved, 3 phases
+- [2026-08-20T04:13:05Z] run halted: 이전 런의 'run done'이 새 런의 status 라우팅을 가림 — 라우팅을 state.md로 되돌리기 위한 마커 (실제 빌드 중단 아님)
+- [2026-08-20T04:13:05Z] run resumed: 새 런(공개 배포 신원/세션) building 진입 — spec/plan approved, phase 1 대기
