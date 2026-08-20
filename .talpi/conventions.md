@@ -60,8 +60,23 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
 이번 런에서 생길 것 (구현자가 만들며 여기 등록):
 
 - 세션 상수 모듈 (쿠키 이름/속성/Max-Age/dev env 플래그) — 위치 재량.
+  **env 플래그명 확정: `NANPASEOM_INSECURE_COOKIE`** (켜진 경우에만
+  Secure 생략, request 시점 resolve — NANPASEOM_STATIC_DIR 패턴).
+  Max-Age는 계약 리터럴 15552000으로 테스트가 pin (상수 import 금지 —
+  동어반복 회피).
 - 신원 해석기 (쿠키 파싱 → UUID 검증 → 세션 존재 확인, 세션 생성 절대
   금지) — /turn·/save-code 공용, bootstrap의 파싱 단계 공유 여부 재량.
+
+## Prior work this phase (Phase 1)
+
+- step 1: tests/api/test_identity_contracts.py — B1·B2·B6·B7 계약 박제
+  (28 tests: 22 failing 의도·6 passing 현행 pin). 세션 픽스처는 repo
+  직접 생성(`_known_session`) 패턴 — /turn 경유 금지. 기존 테스트 충돌
+  (구현 스텝에서 함께 갱신): test_turn_endpoint.py 2개 전부,
+  test_safety_endpoint.py 4개(무쿠키 /turn 의존), test_bootstrap.py
+  본문 session_uuid 단언 7곳 + 무쿠키 /turn 헬퍼 3개,
+  test_save_code.py 헬퍼/redeem 본문 단언 + Secure 재전송 대비
+  conftest env 플래그 처리 필요.
 
 ## Layout & Naming
 

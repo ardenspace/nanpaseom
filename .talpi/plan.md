@@ -9,7 +9,7 @@ status: approved
 
 Contracts: B1, B2, B6, B7
 
-- [ ] B1·B2·B6·B7 계약 테스트 박제 — /turn 쿠키 신원(401·본문 무시·
+- [x] B1·B2·B6·B7 계약 테스트 박제 — /turn 쿠키 신원(401·본문 무시·
       npc_id 404·응답 무 session_uuid), bootstrap 서버 전용 민팅 +
       0턴/503/banned 칸, 모든 Set-Cookie 속성 4종(기존 redeem 응답
       포함 — 발급 단일 경로라 이 페이즈에서 전 표면 커버), 해석기
