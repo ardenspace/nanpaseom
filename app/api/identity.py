@@ -6,11 +6,30 @@
 """
 
 import uuid
+from functools import lru_cache
+from pathlib import Path
 
+import yaml
 from fastapi import Request
+from pydantic import BaseModel, ConfigDict
 
 from app.api.session_cookie import COOKIE_NAME
 from app.store import repo
+
+RULES_DIR = Path(__file__).resolve().parents[2] / "rules"
+
+
+class IdentityRules(BaseModel):
+    """rules/identity.yaml — /turn 401/404 시스템 문구 (서버 발신 메시지 하드코딩 금지)."""
+    model_config = ConfigDict(extra="forbid")
+    no_session_message: str
+    unknown_npc_message: str
+
+
+@lru_cache(maxsize=1)
+def load_identity_rules() -> IdentityRules:
+    raw = yaml.safe_load((RULES_DIR / "identity.yaml").read_text())
+    return IdentityRules.model_validate(raw)
 
 
 def parse_session_cookie(request: Request) -> str | None:

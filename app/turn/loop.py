@@ -84,7 +84,7 @@ def run_turn(conn, session_uuid: str, npc_id: str, player_input: str, *, llm_cal
 
     # Layer 1 — 차단 시 turn 무효 (로그/상태 변화 없음).
     if input_filter.check(player_input).blocked:
-        return TurnResponse(reply=fallback_line, choices=[], session_uuid=session_uuid)
+        return TurnResponse(reply=fallback_line, choices=[])
 
     window = repo.load_recent_turns(conn, session_uuid, npc_id, limit=8)
     system = ctx.system
@@ -95,13 +95,13 @@ def run_turn(conn, session_uuid: str, npc_id: str, player_input: str, *, llm_cal
         reply = llm_call(system, messages)
     except llm_client.LLMError:
         _log_exchange(conn, session_uuid, npc_id, player_input, fallback_line, None)
-        return TurnResponse(reply=fallback_line, choices=[], session_uuid=session_uuid)
+        return TurnResponse(reply=fallback_line, choices=[])
 
     # Layer 4 — HARD violation 시 diegetic fallback (delta 미적용, turn 로그).
     result = output_validator.validate(reply, ctx.band, ctx.band_npc.sample_lines)
     if not result.ok:
         _log_exchange(conn, session_uuid, npc_id, player_input, fallback_line, None)
-        return TurnResponse(reply=fallback_line, choices=[], session_uuid=session_uuid)
+        return TurnResponse(reply=fallback_line, choices=[])
 
     # 정상 — clamp + 영속.
     delta = max(-10, min(10, reply.awareness_delta))
@@ -111,4 +111,4 @@ def run_turn(conn, session_uuid: str, npc_id: str, player_input: str, *, llm_cal
     _log_exchange(conn, session_uuid, npc_id, player_input, reply.reply, reply.model_dump())
     _maybe_summarize(conn, session_uuid, npc_id, state.summary, summarize_call)
 
-    return TurnResponse(reply=reply.reply, choices=reply.choices, session_uuid=session_uuid)
+    return TurnResponse(reply=reply.reply, choices=reply.choices)

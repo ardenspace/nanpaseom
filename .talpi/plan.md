@@ -21,7 +21,7 @@ Contracts: B1, B2, B6, B7
 - [x] 신원 해석기 + bootstrap 서버 전용 민팅 (B7·B2 구현) — 쿠키 파싱
       → UUID 검증 → 세션 존재 확인의 단일 공유 지점 (세션 생성 절대
       금지), bootstrap은 모르는 쿠키를 버리고 새 UUID 민팅.
-- [ ] /turn 쿠키 단일 신원 전환 (B1 구현, Req 1–3·11·13) — 본문
+- [x] /turn 쿠키 단일 신원 전환 (B1 구현, Req 1–3·11·13) — 본문
       session_uuid 무시, 무신원 401(신원 판정이 npc_id 검증보다 먼저),
       npc_id 배선 목록 검증 404, 응답 본문 session_uuid 제거 (payload
       헬퍼 공유라 bootstrap/redeem 응답도 이 step에서 함께). 401 문구는

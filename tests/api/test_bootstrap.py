@@ -3,34 +3,32 @@
 계약 요약:
 
 - URL: ``POST /session/bootstrap`` — request body 없음. **쿠키가 신원**.
-- 쿠키 이름: ``session_uuid`` (서버가 발급/재발급. HttpOnly 등 속성은 계약 아님).
-- 응답 200, status 판별자:
-  - ``"new"``     → ``{status, session_uuid, npc_id, reply, choices}``
+- 쿠키 이름: ``session_uuid`` (서버가 발급/재발급. HttpOnly 등 속성은
+  tests/api/test_identity_contracts.py 의 B6 계약이 pin).
+- 응답 200, status 판별자 (B1 이후 **본문에 session_uuid 없음** — 세션 식별은
+  Set-Cookie 헤더로만):
+  - ``"new"``     → ``{status, npc_id, reply, choices}``
                     reply = 수리공 오프닝 대사(비어있지 않음, 내용은 단언하지 않음),
                     choices 비어있지 않은 ``[{tone, text}]``.
-  - ``"resumed"`` → ``{status, session_uuid, npc_id, history, choices}``
+  - ``"resumed"`` → ``{status, npc_id, history, choices}``
                     history = 최근 N턴 ``[{role, content}]`` (role ∈ user|assistant),
                     choices = 마지막 npc 응답의 choices (``[]`` 이면 자유 입력 모드).
                     resumed 는 LLM 호출 없이 동작한다.
-  - ``"banned"``  → ``{status, session_uuid, npc_id, ban_reason}`` — 대화 데이터
+  - ``"banned"``  → ``{status, npc_id, ban_reason}`` — 대화 데이터
                     (reply/history/choices) 키 미포함.
 - 응답 503 (오프닝 생성 실패): ``{status: "error", message}`` — message 는 시스템 톤,
   대화 데이터/choices 키 미포함.
-- status 가 error 가 아닌 모든 응답은 ``session_uuid`` 와 ``npc_id`` 포함.
-  npc_id 는 서버가 결정 — 이번 런은 수리공 ``"surigong"`` 고정.
+- npc_id 는 서버가 결정 — 이번 런은 수리공 ``"surigong"`` 고정.
 - 턴 0개 세션(미지의 쿠키 포함) 재진입 = 신규 취급: 기존 세션이면 같은
   session_uuid 를 재사용해 오프닝을 다시 시도한다. "0턴인데 resumed" 는 없다.
 """
 
 import uuid
 
-import psycopg
-
-from app.config import DATABASE_URL
-from app.store import repo
-from tests.api.conftest import make_stub_reply
+from tests.api.conftest import known_session, make_stub_reply, session_cookie_value
 
 BOOTSTRAP_URL = "/session/bootstrap"
+TURN_URL = "/turn"
 COOKIE_NAME = "session_uuid"
 NPC_ID = "surigong"
 
@@ -51,15 +49,15 @@ def test_no_cookie_creates_session_with_opening_and_sets_cookie(client):
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "new"
-    assert body["session_uuid"]
     assert body["npc_id"] == NPC_ID
+    assert "session_uuid" not in body  # 자격증명은 응답 본문에 없다 (쿠키로만)
     # 오프닝 대사 — 내용은 단언하지 않음(NPC 대사 하드코딩 금지), 비어있지 않음만.
     assert body["reply"]
     assert body["choices"]  # 비어있지 않음
     for ch in body["choices"]:
         assert ch["tone"] and ch["text"]
-    # 쿠키 발급 — 응답 body 의 session_uuid 와 일치.
-    assert r.cookies.get(COOKIE_NAME) == body["session_uuid"]
+    # 쿠키 발급 — 서버가 민팅한 UUID.
+    uuid.UUID(session_cookie_value(r))
 
 
 def test_unknown_cookie_is_treated_as_new(client):
@@ -68,24 +66,19 @@ def test_unknown_cookie_is_treated_as_new(client):
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "new"
-    assert body["session_uuid"]
     assert body["npc_id"] == NPC_ID
     assert body["reply"] and body["choices"]
 
 
 def test_zero_turn_session_reentry_is_new_and_reuses_session(client):
     # sessions row 는 있으나 chat_logs 0개 → 계약상 "0턴인데 resumed" 는 존재하지 않음.
-    c = psycopg.connect(DATABASE_URL, autocommit=True)
-    sid = repo.mint_session(c)
-    repo.ensure_session(c, sid)
-    c.close()
-
+    sid = known_session(turns=0)
     client.cookies.set(COOKIE_NAME, sid)
     r = client.post(BOOTSTRAP_URL)
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "new"
-    assert body["session_uuid"] == sid  # 같은 세션/쿠키 재사용
+    assert session_cookie_value(r) == sid  # 같은 세션/쿠키 재사용
     assert body["reply"] and body["choices"]
 
 
@@ -154,21 +147,19 @@ def test_failed_opening_then_retry_succeeds_as_new(client, monkeypatch):
 # ----------------------------------------------------------- status: resumed
 
 def test_valid_cookie_with_turns_resumes_with_history_and_choices(client):
-    r = client.post("/turn", json={"npc_id": NPC_ID, "player_input": "보트 수리 잘 돼?"})
-    sid = r.json()["session_uuid"]
-
+    sid = known_session(turns=1)  # bootstrap 민팅 시뮬레이트 — /turn 은 세션을 만들지 않는다
     client.cookies.set(COOKIE_NAME, sid)
     rb = client.post(BOOTSTRAP_URL)
     assert rb.status_code == 200
     body = rb.json()
     assert body["status"] == "resumed"
-    assert body["session_uuid"] == sid
     assert body["npc_id"] == NPC_ID
+    assert session_cookie_value(rb) == sid
     assert body["history"]
     for msg in body["history"]:
         assert msg["role"] in ("user", "assistant")
         assert msg["content"]
-    # 마지막 npc 응답의 choices (stub 은 3개 반환).
+    # 마지막 npc 응답의 choices (헬퍼 raw 는 3개).
     assert len(body["choices"]) == 3
     for ch in body["choices"]:
         assert ch["tone"] and ch["text"]
@@ -177,30 +168,31 @@ def test_valid_cookie_with_turns_resumes_with_history_and_choices(client):
 def test_new_then_reenter_is_resumed_with_opening_in_history(client):
     r1 = client.post(BOOTSTRAP_URL)
     assert r1.json()["status"] == "new"
-    sid = r1.json()["session_uuid"]
+    sid = session_cookie_value(r1)
 
     r2 = client.post(BOOTSTRAP_URL)  # TestClient 쿠키 jar 로 재진입
     assert r2.status_code == 200
     body = r2.json()
     assert body["status"] == "resumed"
-    assert body["session_uuid"] == sid
+    assert session_cookie_value(r2) == sid
     assert body["history"]  # 오프닝 턴이 히스토리에 존재 (턴 ≥ 1)
 
 
 def test_resumed_with_empty_choices_is_free_input_mode(client, monkeypatch):
     # LLM 다운 → run_turn diegetic fallback: 턴은 로그되지만 choices [] (자유 입력 모드).
+    sid = known_session(turns=0)
+    client.cookies.set(COOKIE_NAME, sid)
     _raising_llm(monkeypatch)
-    r = client.post("/turn", json={"npc_id": NPC_ID, "player_input": "안녕"})
-    sid = r.json()["session_uuid"]
+    r = client.post(TURN_URL, json={"npc_id": NPC_ID, "player_input": "안녕"})
+    assert r.status_code == 200
     assert r.json()["choices"] == []
 
-    client.cookies.set(COOKIE_NAME, sid)
     # LLM 은 계속 raising 상태 — resumed 는 LLM 호출 없이 동작해야 함.
     rb = client.post(BOOTSTRAP_URL)
     assert rb.status_code == 200
     body = rb.json()
     assert body["status"] == "resumed"
-    assert body["session_uuid"] == sid
+    assert session_cookie_value(rb) == sid
     assert body["choices"] == []
     assert body["history"]
 
@@ -208,18 +200,18 @@ def test_resumed_with_empty_choices_is_free_input_mode(client, monkeypatch):
 # ------------------------------------------------------------ status: banned
 
 def test_banned_session_bootstraps_as_banned_without_conversation_data(client):
-    r1 = client.post("/turn", json={"npc_id": NPC_ID, "player_input": "씨발"})
-    sid = r1.json()["session_uuid"]
-    r2 = client.post("/turn", json={"session_uuid": sid, "npc_id": NPC_ID, "player_input": "개새끼"})
+    sid = known_session(turns=0)
+    client.cookies.set(COOKIE_NAME, sid)
+    client.post(TURN_URL, json={"npc_id": NPC_ID, "player_input": "씨발"})
+    r2 = client.post(TURN_URL, json={"npc_id": NPC_ID, "player_input": "개새끼"})
     assert r2.json()["kind"] == "ban"
 
-    client.cookies.set(COOKIE_NAME, sid)
     rb = client.post(BOOTSTRAP_URL)
     assert rb.status_code == 200
     body = rb.json()
     assert body["status"] == "banned"
-    assert body["session_uuid"] == sid
     assert body["npc_id"] == NPC_ID
+    assert session_cookie_value(rb) == sid
     assert body["ban_reason"]
     for key in ("reply", "choices", "history"):
         assert key not in body

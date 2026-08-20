@@ -1,17 +1,19 @@
-"""tests/api 공유 fixture — DB 격리 + 결정적 LLM stub.
+"""tests/api 공유 fixture/헬퍼 — DB 격리 + 결정적 LLM stub + 쿠키 신원 헬퍼.
 
-기존 test_turn_endpoint / test_safety_endpoint 는 자체 `client` fixture 를 유지
-(모듈-로컬 fixture 가 이 conftest 의 것을 shadow — 동작 동일). 신규 API 테스트
-모듈은 이 fixture 를 재사용한다.
+B1 이후 /turn 은 세션을 만들지 않는다 (쿠키 신원 필수) — 세션이 필요한 테스트는
+``known_session()`` (repo 직접 생성, bootstrap 민팅 시뮬레이트) 또는 bootstrap 경유로
+만들고 쿠키에 싣는다. 응답의 세션 식별은 본문이 아니라 Set-Cookie 헤더
+(``session_cookie_value``) — 자격증명은 어떤 응답 본문에도 없다.
 """
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.session_cookie import COOKIE_NAME
 from app.config import DATABASE_URL
 from app.models import Choice, TurnReply
-from app.store import db
+from app.store import db, repo
 
 
 def make_stub_reply() -> TurnReply:
@@ -22,6 +24,33 @@ def make_stub_reply() -> TurnReply:
                  Choice(tone="provocative", text="진짜?"),
                  Choice(tone="deflecting", text="딴 얘기")],
     )
+
+
+def known_session(turns: int = 0, npc_id: str = "surigong") -> str:
+    """서버 민팅을 흉내낸 sessions 행 (+ 선택적 chat_logs) — /turn 경유 없이 생성.
+
+    assistant 행에는 3-choice raw 를 실어 resumed 의 load_last_reply_choices 도 동작.
+    """
+    with psycopg.connect(DATABASE_URL, autocommit=True) as c:
+        sid = repo.mint_session(c)
+        repo.ensure_session(c, sid)
+        for i in range(turns):
+            repo.append_chat_log(c, sid, npc_id, 2 * i, "user", f"질문 {i}")
+            repo.append_chat_log(
+                c, sid, npc_id, 2 * i + 1, "assistant", f"응답 {i}",
+                {"choices": [{"tone": "empathetic", "text": "그래"},
+                             {"tone": "provocative", "text": "진짜?"},
+                             {"tone": "deflecting", "text": "딴 얘기"}]},
+            )
+    return sid
+
+
+def session_cookie_value(response) -> str | None:
+    """응답 Set-Cookie 헤더에서 session_uuid 값 추출 (본문에는 더 이상 없다)."""
+    for h in response.headers.get_list("set-cookie"):
+        if h.strip().startswith(f"{COOKIE_NAME}="):
+            return h.split(";", 1)[0].split("=", 1)[1].strip()
+    return None
 
 
 @pytest.fixture()

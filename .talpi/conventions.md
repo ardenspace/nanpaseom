@@ -73,6 +73,14 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
   확인, 통과 시 uuid / 거부 시 None, **세션 생성 절대 없음** — 거부
   처리는 호출자 소관). 쿠키 신원 판정은 반드시 이걸 경유.
 - `app/store/repo.py` — `session_exists(conn, uuid)` 추가 (조회만).
+- `rules/identity.yaml` — 401 `no_session_message` / 404
+  `unknown_npc_message` 의 유일한 홈 (`app/api/identity.py` 의
+  `load_identity_rules()`, pydantic extra=forbid).
+- `app/api/main.py` — `WIRED_NPC_IDS = ("surigong",)` 배선 NPC 목록
+  단일 홈 (BOOTSTRAP_NPC_ID 파생).
+- tests/api/conftest.py — `known_session(turns=0)` (repo 직접 생성
+  세션 픽스처), `session_cookie_value(response)` (Set-Cookie에서 sid
+  추출 — 응답 본문엔 더 이상 없음). 신규 테스트는 이걸 쓴다.
 - 신원 해석기 (쿠키 파싱 → UUID 검증 → 세션 존재 확인, 세션 생성 절대
   금지) — /turn·/save-code 공용, bootstrap의 파싱 단계 공유 여부 재량.
 
@@ -93,6 +101,10 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
   /save-code의 ensure_session 제거(모르는 쿠키 세션 생성 봉인, 응답은
   기존 400 유지 — B3 마감은 Phase 2). 253 green / 14 failing(전부
   step 4 소관: B1 10 + 본문 session_uuid 제거 4).
+- step 4: /turn 쿠키 단일 신원 + rules/identity.yaml + TurnResponse
+  session_uuid 필드 제거(모델 차원 강제) + 충돌 기존 테스트 6파일
+  갱신. 계약 28/28 green, 전체 267 passed 0 failed, 체크 스크립트
+  통과. frontend 미수정(Phase 3 소관).
 
 ## Layout & Naming
 

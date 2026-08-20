@@ -27,7 +27,7 @@ def _stub_reply(delta, tags=None, choices=None):
 def test_happy_turn_persists_clamped_awareness(conn):
     sid = str(uuid.uuid4())
     resp = run_turn(conn, sid, "surigong", "넌 항상 여기 있구나", llm_call=_stub_reply(5, ["purpose"]))
-    assert resp.session_uuid == sid
+    assert resp.kind == "npc"
     state = repo.load_npc_state(conn, sid, "surigong")
     assert state.awareness == 5
     assert state.memory_tags == ["purpose"]

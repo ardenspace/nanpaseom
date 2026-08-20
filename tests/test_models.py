@@ -33,21 +33,24 @@ def test_npc_state_defaults():
     assert s.summary is None
 
 
-def test_turn_response_shape():
-    resp = TurnResponse(reply="hi", choices=[Choice(tone="t", text="x")], session_uuid="u")
-    assert resp.session_uuid == "u"
+def test_turn_response_shape_has_no_session_uuid():
+    """B1/B6 — 자격증명은 응답 모델에 없다 (extra=forbid 라 실으려 하면 에러)."""
+    resp = TurnResponse(reply="hi", choices=[Choice(tone="t", text="x")])
+    assert "session_uuid" not in resp.model_dump()
+    with pytest.raises(ValidationError):
+        TurnResponse(reply="hi", choices=[], session_uuid="u")
 
 
 def test_turn_response_defaults_to_npc_kind():
     from app.models import TurnResponse
-    resp = TurnResponse(reply="hi", choices=[], session_uuid="u")
+    resp = TurnResponse(reply="hi", choices=[])
     assert resp.kind == "npc"
     assert resp.matched_term is None
 
 
 def test_turn_response_warning_kind():
     from app.models import TurnResponse
-    resp = TurnResponse(kind="warning", reply="경고", choices=[], session_uuid="u", matched_term="씨발")
+    resp = TurnResponse(kind="warning", reply="경고", choices=[], matched_term="씨발")
     assert resp.kind == "warning"
     assert resp.matched_term == "씨발"
 

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from psycopg.errors import UniqueViolation
 from pydantic import BaseModel
 
-from app.api.identity import resolve_session
+from app.api.identity import load_identity_rules, resolve_session
 from app.api.session_cookie import set_session_cookie
 from app.models import TurnResponse
 from app.save_code import SAVE_CODE_RE, generate_save_code, load_save_code_rules
@@ -22,9 +22,11 @@ from app.turn.opening import OpeningError, load_opening_rules, run_opening
 
 app = FastAPI(title="난파섬 Sub-2b slice")
 
-# B2: 쿠키가 신원 (이름/수명/속성은 app/api/session_cookie.py 단일 홈).
-# 이번 런은 수리공 단독 — npc 는 서버가 결정.
-BOOTSTRAP_NPC_ID = "surigong"
+# B1/B2: 쿠키가 신원 (이름/수명/속성은 app/api/session_cookie.py 단일 홈).
+# 런타임에 배선된 NPC 목록 단일 홈 — yaml 존재만으로는 불충분 (eobu.yaml 이 있어도 404).
+# 이번 런은 수리공 단독 — bootstrap npc 도 서버가 여기서 결정.
+WIRED_NPC_IDS = ("surigong",)
+BOOTSTRAP_NPC_ID = WIRED_NPC_IDS[0]
 
 # B4: Vite 빌드 산출물. env 는 request 시점 resolve (test_static 계약).
 STATIC_DIR_ENV = "NANPASEOM_STATIC_DIR"
@@ -32,25 +34,39 @@ DEFAULT_STATIC_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
 class TurnRequest(BaseModel):
-    session_uuid: str | None = None
+    """B1 — 본문은 {npc_id, player_input} 뿐. 세션 번호 필드가 와도 무시
+    (pydantic 기본 extra 무시 — 신원은 쿠키 단일, 본문은 신원에 사용되지 않는다)."""
     npc_id: str
     player_input: str
 
 
 @app.post("/turn")
-def turn(req: TurnRequest) -> dict:
+def turn(req: TurnRequest, request: Request):
     with db.connect() as conn:
-        session_uuid = req.session_uuid or repo.mint_session(conn)
-        repo.ensure_session(conn, session_uuid)
+        # 0) 신원 판정이 npc_id 검증보다 먼저 — 무인증에 404 로 NPC 목록을 노출하지 않는다.
+        session_uuid = resolve_session(conn, request)
+        if session_uuid is None:
+            # 쿠키 없음 / UUID 형식 아님 / 모르는 세션 → 401, 세션 생성 없음.
+            return JSONResponse(
+                status_code=401,
+                content={"status": "error",
+                         "message": load_identity_rules().no_session_message},
+            )
 
-        # 1) ban 게이트 — 차단된 세션은 모든 호출 차단.
+        # 1) npc_id — 런타임 배선 목록 검증 (yaml 존재만으로는 불충분).
+        if req.npc_id not in WIRED_NPC_IDS:
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error",
+                         "message": load_identity_rules().unknown_npc_message},
+            )
+
+        # 2) ban 게이트 — 차단된 세션은 모든 호출 차단.
         sess = repo.load_session(conn, session_uuid)
         if sess.banned:
-            return TurnResponse(
-                kind="ban", reply=sess.ban_reason or "", choices=[], session_uuid=session_uuid
-            ).model_dump()
+            return TurnResponse(kind="ban", reply=sess.ban_reason or "", choices=[]).model_dump()
 
-        # 2) strike 평가 (결정적 디니리스트).
+        # 3) strike 평가 (결정적 디니리스트).
         rules = load_safety_rules()
         verdict = detect(req.player_input, [denylist_checker(rules.harassment_denylist)])
         if verdict.category != "clean":
@@ -59,11 +75,10 @@ def turn(req: TurnRequest) -> dict:
                 kind=result.kind,
                 reply=result.message,
                 choices=[],
-                session_uuid=session_uuid,
                 matched_term=result.matched_term,
             ).model_dump()
 
-        # 3) clean → 기존 NPC 턴 (Layer 1 길이/페르소나 + LLM + Layer 4).
+        # 4) clean → 기존 NPC 턴 (Layer 1 길이/페르소나 + LLM + Layer 4).
         resp = run_turn(conn, session_uuid, req.npc_id, req.player_input)
         return resp.model_dump()
 
@@ -76,11 +91,14 @@ def _bootstrap_response(payload: dict, session_uuid: str, status_code: int = 200
 
 
 def _resumed_payload(conn, session_uuid: str, npc_id: str) -> dict | None:
-    """턴 ≥ 1 세션의 resumed 응답 body (LLM 콜 없음). 턴 0개면 None."""
+    """턴 ≥ 1 세션의 resumed 응답 body (LLM 콜 없음). 턴 0개면 None.
+
+    B6: 자격증명 session_uuid 는 응답 본문에 싣지 않는다 — 신원은 쿠키로만 오간다.
+    """
     history = repo.load_recent_turns(conn, session_uuid, npc_id, limit=8)
     if not history:
         return None
-    return {"status": "resumed", "session_uuid": session_uuid, "npc_id": npc_id,
+    return {"status": "resumed", "npc_id": npc_id,
             "history": history,
             "choices": repo.load_last_reply_choices(conn, session_uuid, npc_id)}
 
@@ -88,7 +106,7 @@ def _resumed_payload(conn, session_uuid: str, npc_id: str) -> dict | None:
 def _new_payload(conn, session_uuid: str, npc_id: str) -> dict:
     """턴 0개 세션 → 오프닝 생성 + new 응답 body. 실패 시 OpeningError 전파."""
     opening = run_opening(conn, session_uuid, npc_id)
-    return {"status": "new", "session_uuid": session_uuid, "npc_id": npc_id,
+    return {"status": "new", "npc_id": npc_id,
             "reply": opening.reply,
             "choices": [c.model_dump() for c in opening.choices]}
 
@@ -111,8 +129,7 @@ def bootstrap(request: Request) -> JSONResponse:
         sess = repo.load_session(conn, session_uuid)
         if sess.banned:
             return _bootstrap_response(
-                {"status": "banned", "session_uuid": session_uuid, "npc_id": npc_id,
-                 "ban_reason": sess.ban_reason or ""},
+                {"status": "banned", "npc_id": npc_id, "ban_reason": sess.ban_reason or ""},
                 session_uuid,
             )
 

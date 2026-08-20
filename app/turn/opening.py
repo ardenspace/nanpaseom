@@ -64,4 +64,4 @@ def run_opening(conn, session_uuid: str, npc_id: str, *, llm_call=None) -> TurnR
     repo.append_chat_log(
         conn, session_uuid, npc_id, turn_index, "assistant", reply.reply, reply.model_dump()
     )
-    return TurnResponse(reply=reply.reply, choices=reply.choices, session_uuid=session_uuid)
+    return TurnResponse(reply=reply.reply, choices=reply.choices)

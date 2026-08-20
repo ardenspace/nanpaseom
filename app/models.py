@@ -33,12 +33,13 @@ class TurnResponse(BaseModel):
 
     kind 판별자 (ADR 0031): "npc" = NPC 대사, "warning"/"ban" = 프레임 깨는 시스템 메시지.
     reply 는 kind 에 따라 NPC 대사 또는 시스템 메시지 텍스트.
+
+    B1/B6: 자격증명 session_uuid 는 어떤 응답 본문에도 싣지 않는다 — 신원은 쿠키 단일.
     """
     model_config = ConfigDict(extra="forbid")
     kind: Literal["npc", "warning", "ban"] = "npc"
     reply: str
     choices: list[Choice] = []
-    session_uuid: str
     matched_term: Optional[str] = None
 
 
