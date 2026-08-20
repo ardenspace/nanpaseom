@@ -2,7 +2,6 @@
 + GET / 정적 서빙 (B4)."""
 
 import os
-import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -10,7 +9,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from psycopg.errors import UniqueViolation
 from pydantic import BaseModel
 
-from app.api.session_cookie import COOKIE_NAME, set_session_cookie
+from app.api.identity import resolve_session
+from app.api.session_cookie import set_session_cookie
 from app.models import TurnResponse
 from app.save_code import SAVE_CODE_RE, generate_save_code, load_save_code_rules
 from app.safety import strike
@@ -68,18 +68,6 @@ def turn(req: TurnRequest) -> dict:
         return resp.model_dump()
 
 
-def _cookie_session_uuid(request: Request) -> str | None:
-    """쿠키의 session_uuid — 유효한 UUID 가 아니면 무시 (신규 취급)."""
-    raw = request.cookies.get(COOKIE_NAME)
-    if raw is None:
-        return None
-    try:
-        uuid.UUID(raw)
-    except ValueError:
-        return None
-    return raw
-
-
 def _bootstrap_response(payload: dict, session_uuid: str, status_code: int = 200) -> JSONResponse:
     """B2 응답 + 쿠키 발급/재발급. 503 에도 쿠키를 심어 재시도 시 같은 세션 재사용."""
     resp = JSONResponse(status_code=status_code, content=payload)
@@ -107,11 +95,18 @@ def _new_payload(conn, session_uuid: str, npc_id: str) -> dict:
 
 @app.post("/session/bootstrap")
 def bootstrap(request: Request) -> JSONResponse:
-    """B2 — 쿠키가 신원. new(오프닝 생성) / resumed(LLM 콜 없음) / banned / 503 error."""
+    """B2 — 쿠키가 신원. new(오프닝 생성) / resumed(LLM 콜 없음) / banned / 503 error.
+
+    유일한 세션 생성 문: 해석기 거부(쿠키 없음/형식 불량/모르는 세션)면 클라이언트
+    값은 버리고 서버가 새 UUID 를 민팅한다 — 클라이언트가 고른 값이 세션 행이
+    되는 일은 없다 (스테일 쿠키 채택 폐지).
+    """
     npc_id = BOOTSTRAP_NPC_ID
     with db.connect() as conn:
-        session_uuid = _cookie_session_uuid(request) or repo.mint_session(conn)
-        repo.ensure_session(conn, session_uuid)
+        session_uuid = resolve_session(conn, request)
+        if session_uuid is None:
+            session_uuid = repo.mint_session(conn)
+            repo.ensure_session(conn, session_uuid)
 
         sess = repo.load_session(conn, session_uuid)
         if sess.banned:
@@ -157,19 +152,19 @@ def _mint_save_code(conn, session_uuid: str) -> str:
 
 @app.post("/save-code")
 def issue_save_code(request: Request) -> JSONResponse:
-    """B3 발급 — 쿠키가 신원. 쿠키 없으면 400 (bootstrap 과 달리 세션을 만들지 않는다).
+    """B3 발급 — 신원은 해석기(B7) 통과분만. 거부 시 400 + 세션 생성/쿠키 발급 없음.
 
     재발급은 기존 코드 반환 (idempotent — 이미 적어 둔 코드가 계속 유효).
+    거부 응답의 형태(401 문구 등)는 Phase 2 (B3) 소관 — 여기서는 미생성만 보장.
     """
-    session_uuid = _cookie_session_uuid(request)
-    if session_uuid is None:
-        return JSONResponse(
-            status_code=400,
-            content={"status": "error",
-                     "message": load_save_code_rules().issue_no_session_message},
-        )
     with db.connect() as conn:
-        repo.ensure_session(conn, session_uuid)
+        session_uuid = resolve_session(conn, request)
+        if session_uuid is None:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error",
+                         "message": load_save_code_rules().issue_no_session_message},
+            )
         sess = repo.load_session(conn, session_uuid)
         if sess.banned:
             return JSONResponse(content={"status": "banned", "ban_reason": sess.ban_reason or ""})

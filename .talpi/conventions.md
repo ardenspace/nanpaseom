@@ -68,6 +68,11 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
 - 테스트 환경 Secure 방침: tests/api/conftest.py 공유 client fixture가
   `NANPASEOM_INSECURE_COOKIE=1` setenv (http TestClient 재전송 문제).
   Secure 단언 계약 테스트는 test 본문 delenv로 override.
+- `app/api/identity.py` — B7 신원 해석기: `parse_session_cookie(request)`
+  (파싱+UUID 형식만), `resolve_session(conn, request)` (파싱→검증→존재
+  확인, 통과 시 uuid / 거부 시 None, **세션 생성 절대 없음** — 거부
+  처리는 호출자 소관). 쿠키 신원 판정은 반드시 이걸 경유.
+- `app/store/repo.py` — `session_exists(conn, uuid)` 추가 (조회만).
 - 신원 해석기 (쿠키 파싱 → UUID 검증 → 세션 존재 확인, 세션 생성 절대
   금지) — /turn·/save-code 공용, bootstrap의 파싱 단계 공유 여부 재량.
 
@@ -84,6 +89,10 @@ spacing/radius/type scale 같은 파일. 컴포넌트에 리터럴 색/픽셀 �
 - step 2: app/api/session_cookie.py — B6 구현 (계약 7개 green, 전체
   스위트 251 green 유지, 잔여 failing 16 = B1/B2/B7/본문 제거 소관).
   conftest Secure 방침 확정, main.py 상수 이전.
+- step 3: app/api/identity.py — B7 해석기 + B2 서버 전용 민팅 구현.
+  /save-code의 ensure_session 제거(모르는 쿠키 세션 생성 봉인, 응답은
+  기존 400 유지 — B3 마감은 Phase 2). 253 green / 14 failing(전부
+  step 4 소관: B1 10 + 본문 session_uuid 제거 4).
 
 ## Layout & Naming
 

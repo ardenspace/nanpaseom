@@ -18,7 +18,7 @@ Contracts: B1, B2, B6, B7
       단일 경로에 HttpOnly/Secure/SameSite=Lax/Max-Age 180일, Secure
       생략용 로컬 dev env 플래그(이름 재량), 테스트 환경 Secure 처리
       방침 확정 (Delegated 참조).
-- [ ] 신원 해석기 + bootstrap 서버 전용 민팅 (B7·B2 구현) — 쿠키 파싱
+- [x] 신원 해석기 + bootstrap 서버 전용 민팅 (B7·B2 구현) — 쿠키 파싱
       → UUID 검증 → 세션 존재 확인의 단일 공유 지점 (세션 생성 절대
       금지), bootstrap은 모르는 쿠키를 버리고 새 UUID 민팅.
 - [ ] /turn 쿠키 단일 신원 전환 (B1 구현, Req 1–3·11·13) — 본문

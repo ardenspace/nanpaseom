@@ -96,6 +96,14 @@ def ensure_session(conn, session_uuid: str) -> None:
     )
 
 
+def session_exists(conn, session_uuid: str) -> bool:
+    """sessions 행 존재 여부 — B7 해석기의 존재 확인 단계 (조회만, 생성 없음)."""
+    row = conn.execute(
+        "SELECT 1 FROM sessions WHERE session_uuid = %s", (session_uuid,)
+    ).fetchone()
+    return row is not None
+
+
 def load_session(conn, session_uuid: str) -> SessionState:
     row = conn.execute(
         "SELECT warning_count, first_strike_term, banned_at, ban_reason FROM sessions "
