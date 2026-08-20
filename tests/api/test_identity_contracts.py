@@ -26,6 +26,8 @@ Max-Age 는 계약 리터럴 15552000 (180일) 을 직접 pin — 구현 상수 
 
 import uuid
 
+import pytest
+
 from app.store import repo
 from tests.api.conftest import (
     cookie_value,
@@ -341,6 +343,18 @@ def test_insecure_env_flag_omits_only_secure(client, monkeypatch):
         assert (attrs.get("samesite") or "").lower() == "lax"
         assert attrs.get("max-age") == str(SESSION_COOKIE_MAX_AGE)
         assert attrs.get("path") == "/"
+
+
+@pytest.mark.parametrize("flag_value", ["0", "false", "False", "FALSE", "", "  0  "])
+def test_insecure_env_flag_falsy_values_keep_secure(client, monkeypatch, flag_value):
+    """플래그가 falsy 값("0"/"false"/빈 값)이면 꺼진 것 — Secure 유지 (배포 env 함정 방지)."""
+    monkeypatch.setenv(INSECURE_COOKIE_ENV, flag_value)
+    r = client.post(BOOTSTRAP_URL)
+    headers = session_cookie_headers(r)
+    assert headers
+    for h in headers:
+        attrs = _cookie_attrs(h)
+        assert "secure" in attrs
 
 
 def test_redeem_success_bodies_have_no_session_uuid(client):
