@@ -409,8 +409,22 @@ button:disabled {
   white-space: pre-wrap;
 }
 
+/* 회전 확인 — 되돌릴 수 없는 대가를 알리는 문구라 시스템 경고색. */
+.overlay__body--warning {
+  color: var(--color-system-warning);
+}
+
+/* 오버레이 안에서의 실패 안내 (회전 실패 등) — 서버 문구가 여러 줄일 수 있다. */
+.overlay__error {
+  font-size: var(--font-size-sm);
+  color: var(--color-system-error);
+  white-space: pre-wrap;
+  animation: rise-in var(--dur-rise-fast) ease-out;
+}
+
 .overlay__actions {
   display: flex;
+  flex-wrap: wrap; /* 코드 패널은 버튼 3개 — 좁은 화면에서 줄바꿈 */
   justify-content: center;
   gap: var(--space-2);
 }

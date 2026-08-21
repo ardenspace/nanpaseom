@@ -151,6 +151,23 @@
   `frontend/src/App.turn401.test.tsx` — 401 복구 6건(호출 시퀀스까지
   단언해 '무한 루프 없음'을 pin).
   **App.tsx 534 → 476줄.**
+- step 6: 회전 UI — 기존 세이브 코드 오버레이 안의 2상태 패널(신규
+  오버레이 없음). 기본 상태[코드 복사/새 코드로 바꾸기/닫기] → 확인
+  상태(코드는 그대로 보이고 note 자리에 경고, 서버 호출은 확인 누른
+  뒤에만). **confirm-first** 선택 이유: 옛 코드를 쥔 쪽에게 회전은
+  되돌릴 수 없으니 경고는 결과와 나란히가 아니라 *바꾸기 전에* 나와야
+  한다. 성공 후 패널 유지(새 코드 표시, 복사 라벨 리셋) — 회전 직후가
+  코드를 적어야 하는 순간이라 닫으면 필요한 걸 감춘다.
+  **신규 공유 유틸**: `App.tsx` 모듈 스코프 `readSaveCodeResult(r)` —
+  발급/회전이 unreachable/ok/banned/401 분기 읽기를 공유(오류를 어디
+  띄우냐만 다름). `protocol.ts` 는 `SaveCodeIssueData` 재사용(유사
+  중복 타입 안 만듦). `app.css` 에 `.overlay__body--warning` /
+  `.overlay__error` / actions `flex-wrap`(버튼 3개) — 토큰만 사용.
+  tone: `SAVE_CODE_ISSUED_NOTE` 개정(아래), 신규 상수 불필요.
+  **App.tsx 476 → 558줄** (UI 추가분).
+  **Phase 5 인계(중요)**: mechanic-spec/mapping-spec 에 세이브 코드
+  회전 행이 없다 — 엔드포인트를 추가하고 권한 문서를 안 고친 상태라
+  수락 때 drift 로 읽힌다. Phase 5 ADR/정렬 스텝에서 반드시 처리.
 
 ## Prior work — Phase 1 (완료, 참고용)
 

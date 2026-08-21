@@ -16,6 +16,7 @@ export type BootstrapData = {
 };
 
 // B3 세이브 코드 발급 응답 — 분기는 status 로 (ok / banned / error).
+// 회전(POST /save-code/rotate) 도 같은 shape 를 쓴다 (새 코드냐 기존 코드냐만 다름).
 export type SaveCodeIssueData = {
   status: string;
   save_code?: string;

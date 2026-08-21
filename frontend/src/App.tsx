@@ -3,7 +3,7 @@
 // "Still Here" 는 게임 타이틀(영문)이라 마크업에 둔다.
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { postJson } from "./api";
+import { postJson, type ApiResult } from "./api";
 import { markPlayedHint, readPlayedHint } from "./playedHint";
 import type {
   BootstrapData,
@@ -35,6 +35,8 @@ import {
   SAVE_CODE_INPUT_PLACEHOLDER,
   SAVE_CODE_ISSUED_NOTE,
   SAVE_CODE_ISSUED_TITLE,
+  SAVE_CODE_ROTATE,
+  SAVE_CODE_ROTATE_WARNING,
   SAVE_CODE_SUBMIT,
   SEND_BUTTON,
   SERVER_UNREACHABLE,
@@ -53,6 +55,26 @@ const MAX_INPUT_LEN = 500;
 // 여기서는 입력 필드 상한만 맞춘다 (malformed 는 서버 404 가 처리).
 const SAVE_CODE_LEN = 9;
 
+/** 세이브 코드 응답(발급 · 회전 공용 wire shape) → 새 코드 또는 사용자 노출 오류 문구.
+ *  두 경로가 같은 분기(unreachable / ok / banned / 401·503)를 쓰므로 판독만 여기 모으고,
+ *  오류를 *어디에* 띄울지(채팅 로그 vs 패널)는 호출측이 정한다. */
+type SaveCodeResult =
+  | { ok: true; code: string }
+  | { ok: false; error: string };
+
+function readSaveCodeResult(r: ApiResult<SaveCodeIssueData>): SaveCodeResult {
+  if (r.unreachable) return { ok: false, error: SERVER_UNREACHABLE };
+  const data = r.data;
+  if (data.status === "ok" && data.save_code) {
+    return { ok: true, code: data.save_code };
+  }
+  if (data.status === "banned") {
+    return { ok: false, error: data.ban_reason || GENERIC_ERROR };
+  }
+  // 401 무신원 등 — 서버 문구 우선.
+  return { ok: false, error: data.message || GENERIC_ERROR };
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>("title");
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -67,6 +89,9 @@ export default function App() {
   const [saveCode, setSaveCode] = useState<string | null>(null);
   const [saveCodeOpen, setSaveCodeOpen] = useState(false);
   const [saveCodeCopied, setSaveCodeCopied] = useState(false);
+  // 회전은 같은 패널 안의 확인 단계 — 경고를 읽기 전에는 코드가 바뀌지 않는다.
+  const [rotateConfirm, setRotateConfirm] = useState(false);
+  const [rotateError, setRotateError] = useState<string | null>(null);
   const [codeEntryOpen, setCodeEntryOpen] = useState(false);
   const [codeDraft, setCodeDraft] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
@@ -209,20 +234,37 @@ export default function App() {
       return;
     }
     setBusy(true);
-    const r = await postJson<SaveCodeIssueData>("/save-code");
-    if (r.unreachable) {
-      pushMsg("error", SERVER_UNREACHABLE);
+    const got = readSaveCodeResult(
+      await postJson<SaveCodeIssueData>("/save-code"),
+    );
+    if (got.ok) {
+      setSaveCode(got.code);
+      setSaveCodeOpen(true);
     } else {
-      const data = r.data;
-      if (data.status === "ok" && data.save_code) {
-        setSaveCode(data.save_code);
-        setSaveCodeOpen(true);
-      } else if (data.status === "banned") {
-        pushMsg("error", data.ban_reason || GENERIC_ERROR);
-      } else {
-        // 401 무신원 등 — 서버 문구 우선.
-        pushMsg("error", data.message || GENERIC_ERROR);
-      }
+      // 패널이 아직 안 열렸으므로 실패는 채팅 로그에 남긴다.
+      pushMsg("error", got.error);
+    }
+    setBusy(false);
+  }
+
+  /** 채팅 — 세이브 코드 회전(확인 후). 발급과 달리 idempotent 아님: 성공하면
+   *  이전 코드는 그 순간부터 죽는다. 성공해도 패널은 열어 둔 채 새 코드를
+   *  같은 자리에 보여준다 — 적어 둘 대상이 방금 바뀐 참이라 숨기면 안 된다. */
+  async function rotateSaveCode() {
+    if (busy) return;
+    setBusy(true);
+    setRotateError(null);
+    const got = readSaveCodeResult(
+      await postJson<SaveCodeIssueData>("/save-code/rotate"),
+    );
+    if (got.ok) {
+      setSaveCode(got.code);
+      setSaveCodeCopied(false); // 복사한 것은 옛 코드 — 라벨을 되돌린다.
+      setRotateConfirm(false);
+    } else {
+      // 패널이 채팅 로그를 덮고 있으니 실패는 확인 단계 안에서 알린다
+      // (코드는 안 바뀐 채로 남는다).
+      setRotateError(got.error);
     }
     setBusy(false);
   }
@@ -240,6 +282,8 @@ export default function App() {
   function closeSaveCode() {
     setSaveCodeOpen(false);
     setSaveCodeCopied(false);
+    setRotateConfirm(false);
+    setRotateError(null);
   }
 
   function submitFreeInput(e: React.FormEvent) {
@@ -458,16 +502,54 @@ export default function App() {
           <div className="overlay__backdrop" onClick={closeSaveCode} />
           <div className="overlay__panel">
             <h2 className="overlay__title">{SAVE_CODE_ISSUED_TITLE}</h2>
+            {/* 확인 단계에서도 코드는 계속 보인다 — 무엇이 죽는지 보이는 채로 결정. */}
             <p className="savecode__code">{saveCode}</p>
-            <p className="overlay__body">{SAVE_CODE_ISSUED_NOTE}</p>
-            <div className="overlay__actions">
-              <button className="btn btn--primary" onClick={copySaveCode}>
-                {saveCodeCopied ? SAVE_CODE_COPIED : SAVE_CODE_COPY}
-              </button>
-              <button className="btn btn--ghost" onClick={closeSaveCode}>
-                {SAVE_CODE_CLOSE}
-              </button>
-            </div>
+            {rotateConfirm ? (
+              <>
+                <p className="overlay__body overlay__body--warning">
+                  {SAVE_CODE_ROTATE_WARNING}
+                </p>
+                {rotateError && <p className="overlay__error">{rotateError}</p>}
+                <div className="overlay__actions">
+                  <button
+                    className="btn btn--primary"
+                    onClick={() => void rotateSaveCode()}
+                    disabled={busy}
+                  >
+                    {busy ? CONNECTING : SAVE_CODE_ROTATE}
+                  </button>
+                  <button
+                    className="btn btn--ghost"
+                    onClick={() => {
+                      setRotateConfirm(false);
+                      setRotateError(null);
+                    }}
+                    disabled={busy}
+                  >
+                    {SAVE_CODE_CANCEL}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="overlay__body">{SAVE_CODE_ISSUED_NOTE}</p>
+                <div className="overlay__actions">
+                  <button className="btn btn--primary" onClick={copySaveCode}>
+                    {saveCodeCopied ? SAVE_CODE_COPIED : SAVE_CODE_COPY}
+                  </button>
+                  <button
+                    className="btn btn--ghost"
+                    onClick={() => setRotateConfirm(true)}
+                    disabled={busy}
+                  >
+                    {SAVE_CODE_ROTATE}
+                  </button>
+                  <button className="btn btn--ghost" onClick={closeSaveCode}>
+                    {SAVE_CODE_CLOSE}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
