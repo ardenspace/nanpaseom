@@ -78,3 +78,4 @@
 - [2026-08-21T10:30:07Z] acceptance declined: 런 리뷰 NOTE 4건 전부 수정 요청 (테스트 헬퍼 중복 2건, 백드롭 busy 잔류, mechanic-spec 낡은 노트)
 - [2026-08-21T10:30:24Z] phase 6 started (base: fe0dc1c)
 - [2026-08-21T10:30:24Z] phase 6 contracts: none
+- [2026-08-21T10:54:53Z] phase 6 verified
