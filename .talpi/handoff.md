@@ -24,10 +24,13 @@
 4. **redeem 시도 제한** — 직결 IP당 10회/1시간, 초과 시 429. ADR 0039.
 5. 지난 런이 남긴 위생 2건 — INSECURE_COOKIE 허용목록 반전(fail-closed),
    strike.register 예외화(python -O 생존).
-6. 프론트 테스트 러너 도입(vitest+jsdom+RTL, 45 tests) + App.tsx
-   applyTurn/sendTurn 훅 추출.
+6. 프론트 테스트 러너 도입(vitest+jsdom+RTL) + App.tsx applyTurn/sendTurn
+   훅 추출.
+7. 수락 라운드 2회에서 나온 것: 오버레이 백드롭이 요청 중 `busy` 를
+   남기던 버그(오버레이 2곳) 수정 + 누른 순간 반응하는 피드백(포인터·
+   터치 공통) + `prefers-reduced-motion` 가드(이 레포 최초).
 
-게이트: pytest 364, vitest 45, check_yaml OK, 하드코딩 게이트 clean,
+게이트: pytest 364, vitest 49, check_yaml OK, 하드코딩 게이트 clean,
 `bun run build` green. 스키마 변경 없음, 신규 런타임 의존성 없음.
 
 ## 남은 것 (사람 몫)
@@ -44,14 +47,14 @@
 ## For the next run
 
 - 유력 후보는 **배포 런**(서버/도메인/HTTPS/프로세스 매니저). 위
-  [ESCALATE] 가 그 런의 첫 작업 후보다.
-- App.tsx(684줄) 절단선이 분명해졌다: `SaveCodePanel` +
+  레이트리밋 × Cloudflare Tunnel 이 그 런의 첫 작업 후보다.
+- App.tsx(~690줄) 절단선이 분명해졌다: `SaveCodePanel` +
   `ReplaceConfirmDialog` 추출 → ~350줄. `CopyCodeButton.tsx` 가 그
   디렉토리의 첫 입주자.
 - 훅 추출 중 발견한 기존 `/turn` 401 복구 경로 관찰 5건이
   conventions.md 에 있다(그중 하나는 플레이어 체감: `new` 복구 시 방금
   보낸 입력이 안내 없이 사라진다).
-- `docs/retros/` 는 의도적으로 untracked 상태 — 레포에 넣을지는 사람 몫.
+- `docs/retros/` 는 이번 런에서 레포에 편입했다(자체 커밋 `f6a5dfb`).
 - journal.md 는 append-only 영속(아카이브 금지). 다음 런 시작 시 이번
   런 아티팩트(spec/plan/conventions/manual-check/handoff)를
   `archive/2026-08-21-save-continuity/` 로 옮기고, status.sh 가 이전 런의
