@@ -24,8 +24,9 @@
   도달 불가**임을 박제 — 플레이어가 /turn 중 500 을 보는 일은 없다.
   (하드닝 자체는 tests/safety/test_strike.py 소관.)
 
-Max-Age 는 계약 리터럴 15552000 (180일) 을 직접 pin — 구현 상수 import 는
-동어반복이라 하지 않는다.
+Max-Age 는 구현 상수 import 없이 계약 리터럴(180일) 을 직접 pin 한다 — 구현에서
+가져오면 동어반복이다. 그 리터럴의 홈은 tests/api/conftest.py 의
+``CONTRACT_COOKIE_MAX_AGE`` 하나 (env 값 매트릭스 모듈과 공유).
 
 길이(~300 줄 초과) 사유 기록: 이 모듈의 테스트들은 쿠키 신원이라는 **하나의
 행동 축**을 공유하고 `_turn` / `_assert_401_error` / `_banned_session` /
@@ -37,9 +38,11 @@ Max-Age 는 계약 리터럴 15552000 (180일) 을 직접 pin — 구현 상수 
 
 import uuid
 
+from app.api.session_cookie import COOKIE_NAME, INSECURE_COOKIE_ENV
 from app.safety.rules import load_safety_rules
 from app.store import repo
 from tests.api.conftest import (
+    assert_cookie_attrs_except_secure,
     cookie_attrs,
     cookie_value,
     count_sessions,
@@ -54,10 +57,7 @@ TURN_URL = "/turn"
 BOOTSTRAP_URL = "/session/bootstrap"
 ISSUE_URL = "/save-code"
 REDEEM_URL = "/save-code/redeem"
-COOKIE_NAME = "session_uuid"
 NPC_ID = "surigong"
-SESSION_COOKIE_MAX_AGE = 15552000  # 180일 — B6 계약 리터럴
-INSECURE_COOKIE_ENV = "NANPASEOM_INSECURE_COOKIE"  # 켜진 경우에만 Secure 생략
 
 
 # ------------------------------------------------------------------- helpers
@@ -88,11 +88,8 @@ def _assert_full_secure_cookie(response) -> None:
     for h in headers:
         uuid.UUID(cookie_value(h))  # 값 = 서버가 민팅한 UUID 문자열
         attrs = cookie_attrs(h)
-        assert "httponly" in attrs
-        assert "secure" in attrs
-        assert (attrs.get("samesite") or "").lower() == "lax"
-        assert attrs.get("max-age") == str(SESSION_COOKIE_MAX_AGE)
-        assert attrs.get("path") == "/"
+        assert "secure" in attrs  # 이 표면들의 계약: Secure 는 항상 붙는다
+        assert_cookie_attrs_except_secure(attrs)
 
 
 def _turn(client, player_input: str = "보트 수리 잘 돼?", npc_id: str = NPC_ID, **extra):

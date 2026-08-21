@@ -15,6 +15,12 @@ from app.config import DATABASE_URL
 from app.models import Choice, TurnReply
 from app.store import db, repo
 
+# B6 Max-Age 계약 리터럴의 테스트 쪽 단일 홈 (180일).
+# 구현 상수(app.api.session_cookie.SESSION_COOKIE_MAX_AGE)를 import 하지 않는 것은
+# 의도적이다 — 계약 pin 은 구현과 독립된 숫자여야 동어반복이 아니다. 대신 테스트
+# 전체가 이 한 곳을 본다 (같은 리터럴을 두 파일에 인라인하지 않는다).
+CONTRACT_COOKIE_MAX_AGE = 15552000
+
 
 def db_conn():
     """테스트용 DB 관찰 커넥션 (autocommit) — 부작용 없음 단언은 DB 직접 관찰로."""
@@ -104,6 +110,19 @@ def cookie_attrs(header: str) -> dict[str, str | None]:
         key, sep, val = part.strip().partition("=")
         attrs[key.lower()] = val.strip() if sep else None
     return attrs
+
+
+def assert_cookie_attrs_except_secure(attrs: dict[str, str | None]) -> None:
+    """B6 속성 중 Secure 를 뺀 4종: HttpOnly / SameSite=Lax / Max-Age(180일) / Path=/.
+
+    Secure 유무는 호출부가 각자 단언한다 — 발급 표면 계약에서는 "항상 있다"이고,
+    env 플래그 매트릭스에서는 있냐 없냐가 곧 관찰 대상(계약의 축)이기 때문이다.
+    나머지 4종은 어느 분기에서도 동일해야 하므로 여기 한 곳에 산다.
+    """
+    assert "httponly" in attrs
+    assert (attrs.get("samesite") or "").lower() == "lax"
+    assert attrs.get("max-age") == str(CONTRACT_COOKIE_MAX_AGE)
+    assert attrs.get("path") == "/"
 
 
 def session_cookie_value(response) -> str | None:

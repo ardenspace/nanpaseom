@@ -74,6 +74,12 @@
 - `tests/api/conftest.py` — `cookie_attrs(header)` Set-Cookie 속성 파서
   (기존 `test_identity_contracts.py` 사설 `_cookie_attrs` 승격). 쿠키
   속성 단언은 이걸 쓴다.
+- `tests/api/conftest.py` — `CONTRACT_COOKIE_MAX_AGE = 15552000` (B6
+  Max-Age 계약 리터럴의 **테스트 쪽** 단일 홈; 구현 상수 import 는
+  동어반복이라 일부러 안 한다) + `assert_cookie_attrs_except_secure(attrs)`
+  — Secure 를 뺀 속성 4종(HttpOnly / SameSite=Lax / Max-Age / Path=/)
+  공유 단언. Secure 유무는 호출부가 각자 단언한다(발급 표면 = 항상 있다,
+  env 매트릭스 = 있냐 없냐가 관찰 대상).
 
 ## Prior work this phase (Phase 1 — 위생 2건)
 
@@ -95,6 +101,13 @@
   step 0 `resolve_session` 401 게이트 덕에 도달 불가 — 가드 추가 불필요.
   전 스위트 329 passed. 관찰: `scripts/check_no_hardcoded_dialogue.py`
   는 실행 비트 없음 — 인터프리터 경유로 호출해야 함.
+- step 4 (검증 [FIX] 2건, 테스트 위생 전용 — 프로덕션 무변경):
+  `tests/api/conftest.py` 에 `CONTRACT_COOKIE_MAX_AGE` +
+  `assert_cookie_attrs_except_secure` 승격. `test_cookie_env_flag.py` /
+  `test_identity_contracts.py` 는 env 이름을 `app.api.session_cookie`
+  에서 import 하고(리터럴 인라인 제거), 속성 4종 단언을 공유 헬퍼로
+  위임. `test_identity_contracts.py` 의 `COOKIE_NAME` 사설 리터럴도
+  같은 이유로 프로덕션 import 로 교체. 329 passed (수 불변).
 
 이번 런에서 생길 것 (구현자가 만들면서 여기에 등록):
 

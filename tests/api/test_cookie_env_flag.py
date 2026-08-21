@@ -20,11 +20,14 @@ test_identity_contracts.py 가 400 줄을 넘어 분할 리뷰 대상이 된다.
 
 import pytest
 
-from tests.api.conftest import cookie_attrs, session_cookie_headers
+from app.api.session_cookie import INSECURE_COOKIE_ENV
+from tests.api.conftest import (
+    assert_cookie_attrs_except_secure,
+    cookie_attrs,
+    session_cookie_headers,
+)
 
 BOOTSTRAP_URL = "/session/bootstrap"
-INSECURE_COOKIE_ENV = "NANPASEOM_INSECURE_COOKIE"
-SESSION_COOKIE_MAX_AGE = 15552000  # 180일 — B6 계약 리터럴
 
 # 허용목록 — 이 값들만 "켜짐" (대소문자 무시).
 ALLOWLIST_ON_VALUES = ["1", "true", "True", "TRUE", "tRuE"]
@@ -49,21 +52,13 @@ def _bootstrap_cookie_attrs(client) -> list[dict[str, str | None]]:
     return [cookie_attrs(h) for h in headers]
 
 
-def _assert_other_attrs_intact(attrs: dict[str, str | None]) -> None:
-    """env 플래그는 Secure 하나만 건드린다 — 나머지 속성은 어느 분기에서도 동일."""
-    assert "httponly" in attrs
-    assert (attrs.get("samesite") or "").lower() == "lax"
-    assert attrs.get("max-age") == str(SESSION_COOKIE_MAX_AGE)
-    assert attrs.get("path") == "/"
-
-
 @pytest.mark.parametrize("flag_value", ALLOWLIST_ON_VALUES)
 def test_allowlisted_values_omit_only_secure(client, monkeypatch, flag_value):
     """허용목록 값("1"/"true", 대소문자 무시)만 로컬 dev 예외를 켠다 — Secure 만 생략."""
     monkeypatch.setenv(INSECURE_COOKIE_ENV, flag_value)
     for attrs in _bootstrap_cookie_attrs(client):
         assert "secure" not in attrs
-        _assert_other_attrs_intact(attrs)
+        assert_cookie_attrs_except_secure(attrs)  # env 플래그는 Secure 하나만 건드린다
 
 
 @pytest.mark.parametrize("flag_value", OFF_VALUES)
@@ -72,7 +67,7 @@ def test_non_allowlisted_values_keep_secure(client, monkeypatch, flag_value):
     monkeypatch.setenv(INSECURE_COOKIE_ENV, flag_value)
     for attrs in _bootstrap_cookie_attrs(client):
         assert "secure" in attrs
-        _assert_other_attrs_intact(attrs)
+        assert_cookie_attrs_except_secure(attrs)  # env 플래그는 Secure 하나만 건드린다
 
 
 def test_unset_env_keeps_secure(client, monkeypatch):
@@ -80,4 +75,4 @@ def test_unset_env_keeps_secure(client, monkeypatch):
     monkeypatch.delenv(INSECURE_COOKIE_ENV, raising=False)
     for attrs in _bootstrap_cookie_attrs(client):
         assert "secure" in attrs
-        _assert_other_attrs_intact(attrs)
+        assert_cookie_attrs_except_secure(attrs)  # env 플래그는 Secure 하나만 건드린다
