@@ -129,6 +129,6 @@ Contracts:
       등 토큰 기반), 새 문구·새 요청·계약 변경 없음.
 - [x] `docs/retros/2026-08-19-talpi-0.5.0-dogfood.md` 를 레포에 편입 —
       자체 커밋(무관한 변경에 얹지 않는다).
-- [ ] `docs/mechanic-spec.md` ESC 메뉴 블록 갱신 — ESC 메뉴는 v1 목표로
+- [x] `docs/mechanic-spec.md` ESC 메뉴 블록 갱신 — ESC 메뉴는 v1 목표로
       유지(사람 결정), 현재 헤더 세이브 코드 패널은 잠정 구현임을
       명시하고 회전 진입점을 반영. 상세 근거는 ADR 위임.
