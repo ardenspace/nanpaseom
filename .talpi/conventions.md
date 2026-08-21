@@ -93,6 +93,23 @@
   @testing-library/dom 10.4.1. RTL 을 지금 넣은 이유: B1 의 "회전 도달
   가능 + 문구 명시"는 렌더 수준 사실이라 가짜 seam 을 만들어 pin 하면
   허구를 pin 하게 된다.
+- step 2: 계약 pin — `tests/api/test_save_code_rotate.py`(B1 서버 12건 +
+  B2 회귀), `tests/api/test_redeem_rate_limit.py`(B3 7건, 수치는 rules
+  에서 읽어 하드코딩 없음), `frontend/src/App.saveCode.test.tsx`(B1
+  어포던스 3건). `tests/api/conftest.py` 에 `set_save_code(sid, code)` /
+  `banned_session(turns=1)` 승격. `frontend/src/test/setup.ts` 에
+  `scrollIntoView` no-op 추가(jsdom 미구현 — 컴포넌트 테스트 필수).
+  tone 신규: `SAVE_CODE_ROTATE`, `SAVE_CODE_ROTATE_WARNING`,
+  `RETIRED_IMMUTABLE_CODE_CLAIM`(회귀 가드용 — 렌더 안 함).
+  **다음 스텝이 반드시 제공할 seam**: `app/api/rate_limit.py` 모듈 레벨
+  `reset()`, `rules/save_code.yaml` 키 3종(`redeem_rate_limit_attempts` /
+  `redeem_rate_limit_window_seconds` / `redeem_rate_limited_message`) +
+  `SaveCodeRules` 필드(extra=forbid 라 모델도 같이).
+  **오염 주의**: 리미터는 프로세스 전역이고 기존 redeem 테스트가 전부
+  같은 IP(`testclient`)를 쓴다 → `reset()` 을 공유 `client` fixture 에
+  반드시 배선. 안 하면 기존 redeem 계약 테스트가 누적 카운트로 깨진다.
+  **미pin 1건**: B3 "윈도우 만료 기록 정리" — 결정적 관찰에 시간 seam 이
+  필요해, 구현 스텝이 seam 과 그 테스트를 함께 만든다.
 
 ## Prior work — Phase 1 (완료, 참고용)
 

@@ -72,6 +72,19 @@ export const SAVE_CODE_ISSUED_TITLE = "세이브 코드";
 export const SAVE_CODE_ISSUED_NOTE =
   "이 코드를 적어 두면 다른 기기에서 이어할 수 있습니다. 다시 확인해도 코드는 바뀌지 않습니다.";
 
+/** 채팅 — 코드 패널에서 새 코드로 갈아타는(회전) 진입 버튼. */
+export const SAVE_CODE_ROTATE = "새 코드로 바꾸기";
+
+/** 채팅 — 회전 UI 경고. 회전의 대가(이전 코드 무효화)를 누르기 전에 명시한다.
+ *  정직한 인프라 언어 — 되돌릴 수 없다는 사실을 숨기지 않는다. */
+export const SAVE_CODE_ROTATE_WARNING =
+  "새 코드를 발급하면 이전 코드는 더 이상 쓸 수 없습니다. 적어 둔 옛 코드는 버려 주세요.";
+
+/** 회전 도입 전 안내에 있던 폐기된 주장 — 회전이 생긴 이상 거짓이므로 어떤
+ *  사용자 노출 문구에도 남아 있으면 안 된다. 테스트가 이 상수로 그 부재를 pin 한다
+ *  (문구 회귀 가드 — 값 자체는 화면에 렌더되지 않는다). */
+export const RETIRED_IMMUTABLE_CODE_CLAIM = "다시 확인해도 코드는 바뀌지 않습니다";
+
 /** 채팅 — 코드 복사 버튼 / 복사 완료 라벨. */
 export const SAVE_CODE_COPY = "코드 복사";
 export const SAVE_CODE_COPIED = "복사되었습니다";

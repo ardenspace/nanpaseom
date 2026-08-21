@@ -31,6 +31,13 @@ if (jsdomHandle) {
   }
 }
 
+// jsdom 은 scrollIntoView 를 구현하지 않는다 (레이아웃이 없으므로). 채팅 로그의
+// 자동 스크롤이 렌더마다 호출하므로, 없으면 TypeError 로 컴포넌트 테스트가 죽는다.
+// 스크롤은 이 프로젝트의 계약 대상이 아니라 no-op 으로 채운다.
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoView() {};
+}
+
 // --- (2) 테스트 간 격리 ---------------------------------------------------
 afterEach(() => {
   // globals:false 라 testing-library 의 auto-cleanup 이 스스로 등록되지 않는다.

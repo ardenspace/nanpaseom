@@ -87,6 +87,26 @@ def known_session(turns: int = 0, npc_id: str = "surigong") -> str:
     return sid
 
 
+def set_save_code(sid: str, code: str) -> None:
+    """세션에 세이브 코드를 직접 부여 — 코드를 쓰는 테스트를 발급 엔드포인트와 디커플.
+
+    (redeem/회전 계약을 발급 경로 경유 없이 세팅하기 위한 공유 헬퍼.)
+    """
+    from app.save_code import SAVE_CODE_RE
+
+    assert SAVE_CODE_RE.fullmatch(code)
+    with db_conn() as c:
+        c.execute("UPDATE sessions SET save_code = %s WHERE session_uuid = %s", (code, sid))
+
+
+def banned_session(turns: int = 1, npc_id: str = "surigong") -> str:
+    """밴된 세션 — repo 직접 생성 (B1 이후 /turn 은 쿠키 신원 필수라 우회하지 않는다)."""
+    sid = known_session(turns=turns, npc_id=npc_id)
+    with db_conn() as c:
+        repo.ban_session(c, sid, "누적 경고로 대화가 차단됐습니다.")
+    return sid
+
+
 def session_cookie_headers(response) -> list[str]:
     """응답의 session_uuid Set-Cookie 헤더 전부 — 속성 단언/부재(`== []`) 단언용."""
     return [

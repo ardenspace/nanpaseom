@@ -37,13 +37,14 @@ from app.save_code import (
     SAVE_CODE_RE,
     generate_save_code,
 )
-from app.store import repo
 from tests.api.conftest import (
+    banned_session,
     db_conn,
     db_save_code,
     known_session,
     raising_llm,
     session_cookie_value,
+    set_save_code,
 )
 
 ISSUE_URL = "/save-code"
@@ -54,21 +55,6 @@ NPC_ID = "surigong"
 
 
 # ------------------------------------------------------------------- helpers
-
-def _set_save_code(sid: str, code: str) -> None:
-    """redeem 테스트를 발급 엔드포인트와 디커플 — DB 에 직접 코드 부여."""
-    assert SAVE_CODE_RE.fullmatch(code)
-    with db_conn() as c:
-        c.execute("UPDATE sessions SET save_code = %s WHERE session_uuid = %s", (code, sid))
-
-
-def _banned_session() -> str:
-    """밴된 세션 — repo 직접 생성 (B1 이후 /turn 은 쿠키 신원 필수라 우회하지 않는다)."""
-    sid = known_session(turns=1)
-    with db_conn() as c:
-        repo.ban_session(c, sid, "누적 경고로 대화가 차단됐습니다.")
-    return sid
-
 
 def _session_set_cookies(response) -> list[str]:
     """응답이 session_uuid 쿠키를 심는지 — 재바인딩 유무 단언용."""
@@ -127,7 +113,7 @@ def test_issue_without_cookie_is_error_and_creates_no_session(client):
 
 
 def test_issue_for_banned_session_is_banned_and_mints_no_code(client):
-    sid = _banned_session()
+    sid = banned_session()
     client.cookies.set(COOKIE_NAME, sid)
 
     r = client.post(ISSUE_URL)
@@ -164,7 +150,7 @@ def test_reissue_returns_wellformed_redeemable_code(client):
 
 def test_redeem_session_with_turns_resumes_and_rebinds_cookie(client):
     sid_a = known_session(turns=1)
-    _set_save_code(sid_a, "ABCD-EFGH")
+    set_save_code(sid_a, "ABCD-EFGH")
 
     # 다른 쿠키를 가진 클라이언트 — 재바인딩이 기존 쿠키를 덮어써야 함.
     rb = client.post(BOOTSTRAP_URL)
@@ -197,7 +183,7 @@ def test_redeem_session_with_turns_resumes_and_rebinds_cookie(client):
 
 def test_redeem_zero_turn_session_is_new_with_opening_and_rebinds(client):
     sid = known_session(turns=0)
-    _set_save_code(sid, "PQRS-TUVW")
+    set_save_code(sid, "PQRS-TUVW")
 
     r = client.post(REDEEM_URL, json={"code": "PQRS-TUVW"})
     assert r.status_code == 200
@@ -248,8 +234,8 @@ def test_redeem_malformed_code_is_404_error(client):
 
 
 def test_redeem_banned_session_code_is_banned_without_rebinding(client):
-    sid_a = _banned_session()
-    _set_save_code(sid_a, "JKMN-2345")
+    sid_a = banned_session()
+    set_save_code(sid_a, "JKMN-2345")
 
     rb = client.post(BOOTSTRAP_URL)
     sid_b = session_cookie_value(rb)
@@ -270,7 +256,7 @@ def test_redeem_banned_session_code_is_banned_without_rebinding(client):
 
 def test_redeem_zero_turn_opening_failure_is_503_and_keeps_cookie(client, monkeypatch):
     sid_a = known_session(turns=0)
-    _set_save_code(sid_a, "WXYZ-6789")
+    set_save_code(sid_a, "WXYZ-6789")
 
     rb = client.post(BOOTSTRAP_URL)  # 기존 세션 B (턴 ≥ 1)
     sid_b = session_cookie_value(rb)
