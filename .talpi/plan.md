@@ -112,7 +112,7 @@ Contracts:
       회귀 pin — 탈출구 요청 중 백드롭을 누르면 다이얼로그는 닫히는데
       타이틀 버튼이 죽어 있고 늦게 온 결과가 다음에 열 때 되살아난다
       (Phase 3의 "취소/백드롭/닫기는 탈출구 상태를 리셋" 위반).
-- [ ] `docs/mechanic-spec.md` 2-Strike 절의 낡은 노트 정리 —
+- [x] `docs/mechanic-spec.md` 2-Strike 절의 낡은 노트 정리 —
       "save-code 무효화는 Sub-2b+ 전까지 N/A" 는 세이브 코드가 나온
       지금 거짓. 밴 시 무효화가 컬럼을 비우는 게 아니라 redeem 거부로
       충족된다는 현재 사실에 맞춘다(상세는 ADR 위임).

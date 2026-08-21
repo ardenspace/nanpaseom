@@ -492,7 +492,7 @@ The cost of this ordering: the engine + context-mgmt + safety + error handling a
 
 ### 2-Strike Sexual / Harassment Policy (Layer 2.5)
 
-> **Sub-2b 갱신 (ADR 0030, 2026-06-15):** 이 슬라이스의 감지 = (a) 디니리스트(local, 결정적)만. (b) OpenAI Moderation 카테고리(ML)는 v1.1 로 디퍼 (로컬-온리 stance ADR 0027, 맥미니 단일 GPU 모델 제약). category 는 디니리스트 hit 시 전부 "harassment" 로 합침 — sexual/혐오 세분화는 ML 과 함께. save-code 무효화는 save-code 구현(Sub-2b+) 전까지 N/A, ban 은 session_uuid 스코프.
+> **Sub-2b 갱신 (ADR 0030, 2026-06-15):** 이 슬라이스의 감지 = (a) 디니리스트(local, 결정적)만. (b) OpenAI Moderation 카테고리(ML)는 v1.1 로 디퍼 (로컬-온리 stance ADR 0027, 맥미니 단일 GPU 모델 제약). category 는 디니리스트 hit 시 전부 "harassment" 로 합침 — sexual/혐오 세분화는 ML 과 함께. ban 은 session_uuid 스코프 (당시엔 save-code 가 없어 코드 무효화가 N/A 였다 — 지금 무엇으로 성립하는지는 아래 Strike 2 항).
 
 **디자이너의 윤리 stance를 시스템으로 박는 일.** 4 NPC가 모두 여성 + 공개 URL portfolio 맥락에서 단순 안전 기능이 아닌 *LLM-제품 sensibility 시그널*.
 
@@ -539,7 +539,7 @@ The cost of this ordering: the engine + context-mgmt + safety + error handling a
 ```
 - `sessions.banned_at = now()`, `sessions.ban_reason = "..."`
 - 이후 이 session_uuid 모든 API 호출은 차단 화면 반환
-- **세이브 코드 무효화** — 발급된 코드는 다른 디바이스에서도 못 씀
+- **세이브 코드 무효화** — 발급된 코드는 다른 디바이스에서도 못 씀. 성립 지점은 redeem 이다: `sessions.save_code` 를 비우는 게 아니라 `POST /save-code/redeem` 이 밴 세션으로의 재바인딩을 거부한다 (밴 세션이 코드를 그대로 쥐는 이유는 ADR 0038)
 - v1.1 옵션: Cloudflare WAF로 IP 레벨 차단까지 escalate
 
 **감지 단어 surfacing 정책:**
