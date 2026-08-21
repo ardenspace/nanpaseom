@@ -4,7 +4,9 @@
 - 알파벳: A-Z + 2-9 에서 혼동 문자 O/I/L/0/1 제외 (31자).
 - 생성: ``<단어>-<랜덤4자>`` — 프리픽스는 섬/바다 테마 4자 단어 목록(전 글자가
   허용 알파벳 내 — 인간 재판정 2026-08-19, 가독 프리픽스 채택), 뒤 4자는
-  알파벳 uniform random. UNIQUE 충돌 처리(재시도)는 발급 엔드포인트 몫.
+  알파벳 uniform random.
+- 부여(민팅): ``mint_save_code`` — UNIQUE 충돌 재시도 + 세션 행 갱신. 발급/회전
+  두 표면이 공유하는 단일 정의 (엔드포인트에 복사하지 않는다).
 - 사용자 노출 문구는 ``rules/save_code.yaml`` (코드 하드코딩 금지, opening.yaml 패턴).
 
 형식(상수/regex)은 발급과 검증(redeem)이 공유하는 단일 정의 — 테스트
@@ -17,7 +19,10 @@ from functools import lru_cache
 from pathlib import Path
 
 import yaml
+from psycopg.errors import UniqueViolation
 from pydantic import BaseModel, ConfigDict
+
+from app.store import repo
 
 # 혼동 문자 제외 알파벳: A-Z 에서 O/I/L 제거 + 2-9 (0/1 제외).
 SAVE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -51,6 +56,32 @@ def generate_save_code() -> str:
     word = secrets.choice(SAVE_CODE_PREFIX_WORDS)
     tail = "".join(secrets.choice(SAVE_CODE_ALPHABET) for _ in range(SAVE_CODE_GROUP_LEN))
     return f"{word}-{tail}"
+
+
+SAVE_CODE_MINT_ATTEMPTS = 20  # 31^8 공간 — 충돌 자체가 희귀, 상한은 안전장치
+
+
+class SaveCodeMintError(RuntimeError):
+    """재시도 상한 내에 유일한 코드를 못 얻음 (실질적으로 발생 불가 — 안전장치)."""
+
+
+def mint_save_code(conn, session_uuid: str, *, avoid: str | None = None) -> str:
+    """세션에 새 코드를 부여하고 그 코드를 돌려준다 (UNIQUE 충돌 시 재시도).
+
+    ``avoid`` 는 결과에서 배제할 코드 — 회전이 현재 코드를 넘기면 "회전 후 이전
+    코드는 무효" 계약이 우연한 동일 코드로도 깨지지 않는다. 발급은 넘기지 않는다
+    (부여할 코드가 아직 없는 경우에만 호출되므로 배제할 것도 없다).
+    """
+    for _ in range(SAVE_CODE_MINT_ATTEMPTS):
+        code = generate_save_code()
+        if code == avoid:
+            continue
+        try:
+            repo.set_save_code(conn, session_uuid, code)
+        except UniqueViolation:
+            continue
+        return code
+    raise SaveCodeMintError("save code minting exhausted retries")
 
 
 class SaveCodeRules(BaseModel):

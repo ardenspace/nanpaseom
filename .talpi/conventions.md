@@ -110,6 +110,18 @@
   반드시 배선. 안 하면 기존 redeem 계약 테스트가 누적 카운트로 깨진다.
   **미pin 1건**: B3 "윈도우 만료 기록 정리" — 결정적 관찰에 시간 seam 이
   필요해, 구현 스텝이 seam 과 그 테스트를 함께 만든다.
+- step 3: `POST /save-code/rotate` 구현. **신규 공유 유틸**:
+  `app/save_code.py` 의 `mint_save_code(conn, session_uuid, *, avoid=None)`
+  + `SAVE_CODE_MINT_ATTEMPTS` + `SaveCodeMintError` (기존 `main.py` 사설
+  `_mint_save_code` 승격 — 발급/회전 공용, 도메인 모듈이라 HTTPException
+  대신 도메인 예외). `avoid` 는 계약 요구: 회전이 우연히 같은 코드를
+  재생성하면 옛 코드가 계속 통해버린다. `main.py` 에 `_mint` 얇은 어댑터
+  (도메인 예외→500), `_no_session_response()` / `_banned_response(sess)`
+  공유 응답 헬퍼(각각 3번째 사용처가 생겨 승격). 회전 성공은 Set-Cookie
+  없음(세션 불변 — 오케스트레이터 결정). rules YAML 무변경(회전 전용
+  서버 문구 없음, 401 은 identity.yaml 재사용).
+  `app/api/main.py` 296줄 — 300줄 트리거 미만이라 단일 파일 유지.
+  340 passed (기존 329 + rotate 11).
 
 ## Prior work — Phase 1 (완료, 참고용)
 

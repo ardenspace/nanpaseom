@@ -6,13 +6,17 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
-from psycopg.errors import UniqueViolation
 from pydantic import BaseModel
 
 from app.api.identity import load_identity_rules, resolve_session
 from app.api.session_cookie import set_session_cookie
-from app.models import TurnResponse
-from app.save_code import SAVE_CODE_RE, generate_save_code, load_save_code_rules
+from app.models import SessionState, TurnResponse
+from app.save_code import (
+    SAVE_CODE_RE,
+    SaveCodeMintError,
+    load_save_code_rules,
+    mint_save_code,
+)
 from app.safety import strike
 from app.safety.moderation import denylist_checker, detect
 from app.safety.rules import load_safety_rules
@@ -43,6 +47,23 @@ ASSET_EXT_WHITELIST = frozenset({
 })
 
 
+def _no_session_response() -> JSONResponse:
+    """해석기 거부(쿠키 없음/형식 불량/모르는 세션) 응답 — 쿠키 인증 표면 공통.
+
+    /turn · /save-code · /save-code/rotate 가 같은 401 을 낸다 (문구는
+    rules/identity.yaml no_session_message 단일 홈). 세션 생성/쿠키 발급 없음.
+    """
+    return JSONResponse(
+        status_code=401,
+        content={"status": "error", "message": load_identity_rules().no_session_message},
+    )
+
+
+def _banned_response(sess: SessionState) -> JSONResponse:
+    """밴 세션의 세이브 코드 표면 공통 응답 (발급 · redeem · 회전 동일 결)."""
+    return JSONResponse(content={"status": "banned", "ban_reason": sess.ban_reason or ""})
+
+
 class TurnRequest(BaseModel):
     """B1 — 본문은 {npc_id, player_input} 뿐. 세션 번호 필드가 와도 무시
     (pydantic 기본 extra 무시 — 신원은 쿠키 단일, 본문은 신원에 사용되지 않는다)."""
@@ -57,11 +78,7 @@ def turn(req: TurnRequest, request: Request):
         session_uuid = resolve_session(conn, request)
         if session_uuid is None:
             # 쿠키 없음 / UUID 형식 아님 / 모르는 세션 → 401, 세션 생성 없음.
-            return JSONResponse(
-                status_code=401,
-                content={"status": "error",
-                         "message": load_identity_rules().no_session_message},
-            )
+            return _no_session_response()
 
         # 1) npc_id — 런타임 배선 목록 검증 (yaml 존재만으로는 불충분).
         if req.npc_id not in WIRED_NPC_IDS:
@@ -158,23 +175,17 @@ def bootstrap(request: Request) -> JSONResponse:
 
 # --------------------------------------------------------------- B3 세이브 코드
 
-SAVE_CODE_MINT_ATTEMPTS = 20  # 31^8 공간 — 충돌 자체가 희귀, 상한은 안전장치
-
 
 class RedeemRequest(BaseModel):
     code: str
 
 
-def _mint_save_code(conn, session_uuid: str) -> str:
-    """UNIQUE 충돌 시 재시도하며 세션에 새 코드 부여."""
-    for _ in range(SAVE_CODE_MINT_ATTEMPTS):
-        code = generate_save_code()
-        try:
-            repo.set_save_code(conn, session_uuid, code)
-        except UniqueViolation:
-            continue
-        return code
-    raise HTTPException(status_code=500, detail="save code minting exhausted retries")
+def _mint(conn, session_uuid: str, *, avoid: str | None = None) -> str:
+    """민팅(app/save_code.py 단일 정의)을 HTTP 표면으로 옮기는 어댑터 — 소진 시 500."""
+    try:
+        return mint_save_code(conn, session_uuid, avoid=avoid)
+    except SaveCodeMintError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.post("/save-code")
@@ -188,15 +199,35 @@ def issue_save_code(request: Request) -> JSONResponse:
     with db.connect() as conn:
         session_uuid = resolve_session(conn, request)
         if session_uuid is None:
-            return JSONResponse(
-                status_code=401,
-                content={"status": "error",
-                         "message": load_identity_rules().no_session_message},
-            )
+            return _no_session_response()
         sess = repo.load_session(conn, session_uuid)
         if sess.banned:
-            return JSONResponse(content={"status": "banned", "ban_reason": sess.ban_reason or ""})
-        code = repo.get_save_code(conn, session_uuid) or _mint_save_code(conn, session_uuid)
+            return _banned_response(sess)
+        code = repo.get_save_code(conn, session_uuid) or _mint(conn, session_uuid)
+        return JSONResponse(content={"status": "ok", "save_code": code})
+
+
+@app.post("/save-code/rotate")
+def rotate_save_code(request: Request) -> JSONResponse:
+    """B1 회전 — 현재 코드를 무효화하고 새 코드를 부여. 발급과 달리 idempotent 아님.
+
+    신원/밴 분기는 발급과 같은 결(401 · banned). 성공은 ``{status:"ok", save_code}``.
+    무효화는 ``sessions.save_code`` 한 칸의 덮어쓰기 — 이전 코드는 그 순간부터
+    어느 세션에도 매이지 않으므로(redeem 404) 두 코드가 동시에 유효한 순간이 없다.
+    소각 목록은 두지 않는다 (그 문자열은 이후 민팅에서 다시 쓰일 수 있다).
+    코드 미발급(NULL) 세션이면 무효화할 것이 없을 뿐 — 첫 민팅으로 성공.
+
+    Set-Cookie 없음: 회전은 세션을 바꾸지 않으므로 재바인딩할 신원이 없다.
+    """
+    with db.connect() as conn:
+        session_uuid = resolve_session(conn, request)
+        if session_uuid is None:
+            return _no_session_response()
+        sess = repo.load_session(conn, session_uuid)
+        if sess.banned:  # 회전 없음 — 밴 세션의 코드는 그대로 둔다.
+            return _banned_response(sess)
+        current = repo.get_save_code(conn, session_uuid)
+        code = _mint(conn, session_uuid, avoid=current)
         return JSONResponse(content={"status": "ok", "save_code": code})
 
 
@@ -220,7 +251,7 @@ def redeem_save_code(req: RedeemRequest) -> JSONResponse:
 
         sess = repo.load_session(conn, session_uuid)
         if sess.banned:  # 재바인딩 없음 — 밴 세션으로 갈아타지 않는다.
-            return JSONResponse(content={"status": "banned", "ban_reason": sess.ban_reason or ""})
+            return _banned_response(sess)
 
         npc_id = BOOTSTRAP_NPC_ID
         payload = _resumed_payload(conn, session_uuid, npc_id)
