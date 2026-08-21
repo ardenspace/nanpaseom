@@ -19,12 +19,37 @@ class StrikeResult(BaseModel):
     matched_term: Optional[str] = None
 
 
+class UnknownSessionError(RuntimeError):
+    """B7 — register 의 전제(존재 확인된 세션) 위반. 내부 계약 위반 신호.
+
+    플레이어에게 보이는 오류가 아니다: 유일한 호출부(/turn 안전 트랙)는 신원
+    게이트(resolve_session) 뒤에 있어 미지의 세션은 401 에서 끝난다. 이 예외가
+    실제로 오르면 그건 호출부가 깨졌다는 버그 신호 (tests/api/test_identity_contracts.py
+    B7 섹션이 도달 불가를 박제).
+
+    AssertionError 를 상속하지 않는다 — assert 계열은 ``python -O`` 에서 지워져
+    하드닝이 조용한 무동작으로 되돌아간다.
+    """
+
+
+# 개발자용 진단 문구 — 플레이어 발신 문구가 아니므로 rules/safety.yaml 이 아니라 여기.
+_UNKNOWN_SESSION_DETAIL = (
+    "strike.register requires a session row that already exists "
+    "(minting belongs to POST /session/bootstrap); unknown session_uuid={uuid}"
+)
+
+
 def register(conn, session_uuid: str, verdict: SafetyVerdict) -> StrikeResult:
     """성희롱/혐오 감지를 strike 로 등록. 호출 전 verdict.category != 'clean' 가정.
 
     세션 행은 만들지 않는다 (Req 8: 세션 생성 문은 POST /session/bootstrap 유일) —
     호출자는 존재 확인된 session_uuid 만 넘길 것 (엔드포인트 신원 게이트가 보장).
+    전제가 깨지면 조용히 넘어가지 않고 UnknownSessionError 로 즉시 실패한다 (B7):
+    부작용(safety_events 기록) 전에 검사하므로 실패한 호출은 흔적을 남기지 않는다.
     """
+    if not repo.session_exists(conn, session_uuid):
+        raise UnknownSessionError(_UNKNOWN_SESSION_DETAIL.format(uuid=session_uuid))
+
     rules = load_safety_rules()
     term = verdict.matched_term or ""
 

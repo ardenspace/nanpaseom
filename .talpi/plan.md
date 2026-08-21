@@ -14,7 +14,7 @@ Contracts: B6, B7
       의미로 갱신하는 것도 이 단계.
 - [x] `session_cookie.py` 판정 반전 구현 — falsy 목록 방식 폐지,
       허용목록만 Secure 생략.
-- [ ] `strike.register` 전제 위반을 실제 예외로 — bare `assert` 금지
+- [x] `strike.register` 전제 위반을 실제 예외로 — bare `assert` 금지
       (`python -O` 에서 조용한 무동작으로 되돌아가므로).
 
 ## Phase 2: 코드 회전과 추측 방어

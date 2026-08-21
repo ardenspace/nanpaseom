@@ -90,6 +90,11 @@
   홈을 ADR 0034 개정으로 할지 신규 ADR로 할지 Phase 5에서 결정.
   레포 전역 grep 결과 `.env.example`/compose/배포 스크립트에 이 env
   참조 없음(= 손으로 세팅한 dev env 외 영향 없음).
+- step 3: `app/safety/strike.py` — `UnknownSessionError(RuntimeError)` +
+  `repo.session_exists` 선행 검사(부작용 전에 죽음). `/turn` 호출부는
+  step 0 `resolve_session` 401 게이트 덕에 도달 불가 — 가드 추가 불필요.
+  전 스위트 329 passed. 관찰: `scripts/check_no_hardcoded_dialogue.py`
+  는 실행 비트 없음 — 인터프리터 경유로 호출해야 함.
 
 이번 런에서 생길 것 (구현자가 만들면서 여기에 등록):
 
