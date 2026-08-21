@@ -300,6 +300,32 @@ button:disabled {
   animation-delay: 0.4s;
 }
 
+/* ---------- 세이브 코드 넛지 (B5) ----------
+   입력 바로 위에 붙는 시스템 배너. 시스템 메시지와 같은 면/같은 계열 색을 쓰되
+   로그가 아니라 컨트롤에 붙으므로 폭을 꽉 채우고 스크롤과 함께 움직이지 않는다. */
+
+.nudge {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--border-hairline) solid var(--color-abyss-500);
+  border-left: var(--border-accent) solid var(--color-system-error);
+  background: var(--color-system-surface);
+  animation: rise-in var(--dur-fade) ease-out;
+}
+
+.nudge__body {
+  font-size: var(--font-size-sm);
+  color: var(--color-system-error);
+}
+
+.nudge__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 /* ---------- 하단 컨트롤 (선택지 / 자유 입력) ---------- */
 
 .chat__controls {

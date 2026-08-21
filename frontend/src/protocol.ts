@@ -11,6 +11,9 @@ export type BootstrapData = {
   reply?: string;
   choices?: Choice[];
   history?: { role: string; content: string }[];
+  // B2b — 이 세션이 유효한 세이브 코드를 갖고 있는가. 진입 성공(new/resumed)
+  // 응답에만 실린다 (banned/503 에는 없음) — 넛지 노출의 권위 (B5).
+  has_save_code?: boolean;
   ban_reason?: string;
   message?: string;
 };

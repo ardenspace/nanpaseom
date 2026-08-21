@@ -30,6 +30,10 @@ export type TurnDeps = {
   /** 현재 대화 중인 NPC. 401 재시도도 이 값을 그대로 쓴다 (원본 동작). */
   npcId: string;
   pushMsg: (kind: Msg["kind"], text: string) => void;
+  /** 플레이어 턴 1건이 나갔다 — 이 세션의 누적 턴 수를 세는 쪽에 알린다 (B5 넛지).
+   *  401 복구의 *재시도* 는 같은 턴이므로 다시 세지 않는다. 새 세션으로 갈아탄
+   *  경우의 리셋은 enterChat 소유 (진입이 카운터의 홈). */
+  onTurnSent: () => void;
   setChoices: (choices: Choice[]) => void;
   /** 차단 화면 전환 — 사유 표시 + 선택지 봉인 + 화면 교체. */
   showBanned: (reason: string) => void;
@@ -40,8 +44,16 @@ export type TurnDeps = {
 export function useTurn(deps: TurnDeps): {
   sendTurn: (text: string) => Promise<void>;
 } {
-  const { busy, setBusy, npcId, pushMsg, setChoices, showBanned, enterChat } =
-    deps;
+  const {
+    busy,
+    setBusy,
+    npcId,
+    pushMsg,
+    onTurnSent,
+    setChoices,
+    showBanned,
+    enterChat,
+  } = deps;
 
   /** turn 응답을 화면에 반영. 401 처리(자동 재bootstrap)는 sendTurn 소유 —
    *  여기 도달한 !ok 는 그 외 오류다. */
@@ -72,6 +84,7 @@ export function useTurn(deps: TurnDeps): {
     if (busy) return;
     setBusy(true);
     pushMsg("user", text);
+    onTurnSent();
     // 신원은 쿠키가 전담 — 본문은 {npc_id, player_input} 뿐 (B1/B6).
     const r = await postJson<TurnData>("/turn", {
       npc_id: npcId,

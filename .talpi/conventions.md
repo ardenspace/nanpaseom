@@ -128,6 +128,26 @@
   **다음 스텝 인계**: `frontend/src/protocol.ts` 의 `BootstrapData` 에
   `has_save_code?: boolean` 추가 — `RedeemData` 가 별칭이라 한 번만
   고치면 두 표면이 모두 덮인다.
+- step 3: 넛지 프론트 구현. 배치는 채팅 입력 바 **바로 위 시스템 배너**
+  (`role="status"`, `.nudge`) — 메시지 로그에 넣으면 다음 턴에 스크롤로
+  밀려 '행동할 수 있는 것'이 아니게 된다. `--color-system` 계열,
+  NPC 말풍선 색 미공유.
+  **신규 공유 유틸**: `frontend/src/saveCodeNudge.ts` 실구현 —
+  `shouldShowSaveCodeNudge` / `readNudgeDismissed` / `markNudgeDismissed`
+  / `clearNudgeDismissed`, 저장 키 `nanpaseom.saveCodeNudgeDismissed`
+  (playedHint 와 같은 guarded try/catch 형태 — 프라이버시 모드에서
+  throw 하지 않고 '미dismiss' 로 degrade).
+  `useTurn` 의 `TurnDeps` 에 `onTurnSent` 추가(증가 지점은 `sendTurn` 의
+  `pushMsg("user", …)` 직후). 401 복구 *재시도*는 같은 턴이라 다시 세지
+  않고, 401→`new` 분기는 `enterChat` 을 지나 0 으로 재시드 + dismiss
+  해제(결정 4). 401 회귀 6건 무손상.
+  세션 시드는 `enterNudgeSession(data)` 한 곳: `new`→0,
+  resumed→임계값(즉시 자격). 발급/회전 성공은 왕복 없이 `hasSaveCode`
+  를 true 로 — 컴포넌트 테스트가 bootstrap 호출 1회를 단언해 pin.
+  tone 신규: `SAVE_CODE_NUDGE_ACTION = "세이브 코드 받기"`(헤더 버튼
+  `SAVE_CODE_BUTTON` 과 일부러 다른 문구 — 동시에 화면에 있어도 헷갈리지
+  않게). 행동 버튼은 `issueSaveCode()` 재사용 = 코드 표시 표면을 하나로.
+  **App.tsx 606 → 684줄.** 프론트 44/44, pytest 364 passed.
 
 ## Prior work — Phase 3 (완료, 참고용)
 

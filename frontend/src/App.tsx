@@ -12,6 +12,12 @@ import type {
   RedeemData,
   SaveCodeIssueData,
 } from "./protocol";
+import {
+  clearNudgeDismissed,
+  markNudgeDismissed,
+  readNudgeDismissed,
+  shouldShowSaveCodeNudge,
+} from "./saveCodeNudge";
 import { useTurn, type Msg } from "./useTurn";
 import {
   BANNED_TITLE,
@@ -36,6 +42,10 @@ import {
   SAVE_CODE_INPUT_PLACEHOLDER,
   SAVE_CODE_ISSUED_NOTE,
   SAVE_CODE_ISSUED_TITLE,
+  SAVE_CODE_NUDGE_ACTION,
+  SAVE_CODE_NUDGE_AFTER_TURNS,
+  SAVE_CODE_NUDGE_BODY,
+  SAVE_CODE_NUDGE_DISMISS,
   SAVE_CODE_ROTATE,
   SAVE_CODE_ROTATE_WARNING,
   SAVE_CODE_SUBMIT,
@@ -104,6 +114,12 @@ export default function App() {
   const [rescue, setRescue] = useState<RescueState>(null);
   // 재방문 힌트는 타이틀 첫 렌더 시점에 한 번만 읽는다 (라벨 용도).
   const [playedHint] = useState(readPlayedHint);
+  // B5 넛지의 세 입력. hasSaveCode 의 권위는 진입 응답의 has_save_code(B2b) 이고,
+  // 세션 도중 발급/회전 성공이 추가 왕복 없이 즉시 참으로 갱신한다.
+  const [hasSaveCode, setHasSaveCode] = useState(false);
+  // 이 세션에서 플레이어가 보낸 누적 턴 수. 진입이 시드를 정하고 useTurn 이 센다.
+  const [turnCount, setTurnCount] = useState(0);
+  const [nudgeDismissed, setNudgeDismissed] = useState(readNudgeDismissed);
   const logEndRef = useRef<HTMLDivElement>(null);
   const firstScrollRef = useRef(true);
 
@@ -140,7 +156,37 @@ export default function App() {
     }
     setChoices(data.choices ?? []);
     setSaveCode(null); // 세션이 바뀌었을 수 있으니 캐시된 코드 무효화.
+    enterNudgeSession(data);
     setScreen("chat");
+  }
+
+  /** 진입 1회당 넛지 상태 시드 (B5). 진입은 세션이 바뀌는 유일한 지점이라
+   *  누적 턴 수 · 코드 보유 · dismiss 세 입력이 전부 여기서 정해진다.
+   *
+   *  턴 수 시드: new 는 0 (임계값만큼 쌓아야 노출). new 가 아닌 진입(resumed)은
+   *  임계값에서 시작한다 — resumed 자체가 지킬 진행이 있다는 증거이고, 복원되는
+   *  히스토리는 잘려 오므로(limit=8) 거기서 턴을 세면 없는 숫자를 지어내는 꼴이다.
+   *
+   *  dismiss 해제: *코드 없는 새 세션* 진입에서만. 쿠키가 사라져 새 세션이 된
+   *  플레이어가 코드도 없이 넛지를 영영 못 보는 상태를 막는다. resumed 는 해제하지
+   *  않고(닫은 결정이 유효), 코드로 복원된 세션은 has_save_code 가 참이라 애초에
+   *  이 분기에 오지 않는다. */
+  function enterNudgeSession(data: BootstrapData) {
+    const isNew = data.status === "new";
+    const entryHasCode = data.has_save_code === true;
+    setHasSaveCode(entryHasCode);
+    setTurnCount(isNew ? 0 : SAVE_CODE_NUDGE_AFTER_TURNS);
+    if (isNew && !entryHasCode) {
+      clearNudgeDismissed();
+      setNudgeDismissed(false);
+    } else {
+      setNudgeDismissed(readNudgeDismissed());
+    }
+  }
+
+  function dismissNudge() {
+    markNudgeDismissed();
+    setNudgeDismissed(true);
   }
 
   /** 차단 확정 → 사유 표시 + 선택지 봉인 + 화면 교체. turn 경로 전용 —
@@ -158,6 +204,7 @@ export default function App() {
     setBusy,
     npcId,
     pushMsg,
+    onTurnSent: () => setTurnCount((n) => n + 1),
     setChoices,
     showBanned,
     enterChat,
@@ -266,6 +313,8 @@ export default function App() {
     if (got.ok) {
       setSaveCode(got.code);
       setSaveCodeOpen(true);
+      // 발급 성공이 곧 코드 보유 — 넛지는 여기서 즉시 꺼진다 (추가 왕복 없음).
+      setHasSaveCode(true);
     } else {
       // 패널이 아직 안 열렸으므로 실패는 채팅 로그에 남긴다.
       pushMsg("error", got.error);
@@ -287,6 +336,8 @@ export default function App() {
       // 복사 라벨은 CopyCodeButton 이 코드별로 소유 — key 가 바뀌며 저절로 되돌아간다.
       setSaveCode(got.code);
       setRotateConfirm(false);
+      // 회전은 코드를 갈아끼울 뿐 — 보유 상태를 되돌리지 않는다.
+      setHasSaveCode(true);
     } else {
       // 패널이 채팅 로그를 덮고 있으니 실패는 확인 단계 안에서 알린다
       // (코드는 안 바뀐 채로 남는다).
@@ -449,6 +500,12 @@ export default function App() {
   }
 
   const freeInputMode = choices.length === 0;
+  // B5 — 판정은 saveCodeNudge 의 순수 함수 소유. 여기서는 입력을 모으기만 한다.
+  const nudgeVisible = shouldShowSaveCodeNudge({
+    hasSaveCode,
+    turnCount,
+    dismissed: nudgeDismissed,
+  });
 
   return (
     <main className="chat">
@@ -508,6 +565,27 @@ export default function App() {
         )}
         <div ref={logEndRef} />
       </div>
+
+      {/* 넛지는 로그가 아니라 입력 바로 위 — 로그에 넣으면 다음 턴에 스크롤로
+          밀려 올라가 지금 할 수 있는 일이 아니게 된다. 시스템 목소리이므로
+          system 색 계열만 쓴다 (NPC 말풍선 색과 절대 공유 금지). */}
+      {nudgeVisible && (
+        <div className="nudge" role="status">
+          <p className="nudge__body">{SAVE_CODE_NUDGE_BODY}</p>
+          <div className="nudge__actions">
+            <button
+              className="btn btn--primary"
+              onClick={() => void issueSaveCode()}
+              disabled={busy}
+            >
+              {SAVE_CODE_NUDGE_ACTION}
+            </button>
+            <button className="btn btn--ghost" onClick={dismissNudge}>
+              {SAVE_CODE_NUDGE_DISMISS}
+            </button>
+          </div>
+        </div>
+      )}
 
       <footer className="chat__controls">
         {freeInputMode ? (

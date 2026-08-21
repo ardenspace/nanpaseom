@@ -1,10 +1,5 @@
 // B5 세이브 코드 넛지 — 판정의 순수 함수 + dismiss 플래그 저장소.
 //
-// Phase 4 step 1 (계약 pin) 에서는 *이름/모듈/시그니처만* 고정한다. 본문은 전부
-// 미구현이며 호출 즉시 던진다 — saveCodeNudge.test.ts 가 이 시그니처에 대고
-// 계약을 pin 하고, 구현은 다음 스텝이 채운다. 여기에 로직을 두는 것이 이 스텝의
-// 일이 아니라는 사실을 코드로 남긴다.
-//
 // 왜 순수 함수인가: 노출 조건은 관측 가능한 세션 상태(누적 턴 수 · 코드 보유 ·
 // dismiss)의 함수여야 화면 없이 경계를 pin 할 수 있다. 임계값은 이 파일이 아니라
 // tone.ts (프론트 튜닝 값의 단일 홈) 에 산다 — 두 곳 중복 금지.
@@ -12,7 +7,9 @@
 // dismiss 플래그는 localStorage — 기존 재방문 힌트(playedHint.ts)와 같은 저장소,
 // 같은 모양. 세션 신원/진행은 절대 여기 두지 않는다 (신원은 쿠키 단일 소스).
 
-const NOT_IMPLEMENTED = "saveCodeNudge: not implemented (Phase 4 step 1 pins the signature only)";
+import { SAVE_CODE_NUDGE_AFTER_TURNS } from "./tone";
+
+const NUDGE_DISMISSED_KEY = "nanpaseom.saveCodeNudgeDismissed";
 
 /** 넛지 판정의 입력 — 전부 관측 가능한 세션 상태.
  *
@@ -28,23 +25,40 @@ export type NudgeState = {
   dismissed: boolean;
 };
 
-/** 넛지를 지금 노출할 것인가. 순수 — 같은 입력이면 항상 같은 답. */
-export function shouldShowSaveCodeNudge(_state: NudgeState): boolean {
-  throw new Error(NOT_IMPLEMENTED);
+/** 넛지를 지금 노출할 것인가. 순수 — 같은 입력이면 항상 같은 답.
+ *
+ *  억제가 먼저다: 이미 코드를 가진 세션과 이 기기에서 닫은 적이 있는 플레이어는
+ *  턴을 아무리 쌓아도 보지 않는다 (B5). 그 둘을 통과했을 때만 임계값을 잰다. */
+export function shouldShowSaveCodeNudge(state: NudgeState): boolean {
+  if (state.hasSaveCode) return false;
+  if (state.dismissed) return false;
+  return state.turnCount >= SAVE_CODE_NUDGE_AFTER_TURNS;
 }
 
 /** 이 기기에서 넛지를 닫은 적이 있는가. 저장소를 못 읽으면 false (무해한 재노출). */
 export function readNudgeDismissed(): boolean {
-  throw new Error(NOT_IMPLEMENTED);
+  try {
+    return localStorage.getItem(NUDGE_DISMISSED_KEY) === "1";
+  } catch {
+    return false; // 프라이버시 모드 등 — 닫은 적 없음으로 취급 (기록된 한계).
+  }
 }
 
 /** 넛지를 닫았다고 이 기기에 기록. 저장 실패는 무해 — 다음에 다시 보일 뿐. */
 export function markNudgeDismissed(): void {
-  throw new Error(NOT_IMPLEMENTED);
+  try {
+    localStorage.setItem(NUDGE_DISMISSED_KEY, "1");
+  } catch {
+    // 넛지 하나 때문에 화면이 깨지면 안 된다 — 던지지 않는 것이 계약.
+  }
 }
 
 /** dismiss 기록 해제 — 이 기기에서 *코드 없는 새 세션* 으로 진입했을 때만.
  *  쿠키가 사라져 새 세션이 된 플레이어가 넛지를 영영 못 보는 상태를 막는다. */
 export function clearNudgeDismissed(): void {
-  throw new Error(NOT_IMPLEMENTED);
+  try {
+    localStorage.removeItem(NUDGE_DISMISSED_KEY);
+  } catch {
+    // 해제 실패도 무해 — 넛지가 안 보일 뿐 진행은 그대로다.
+  }
 }
