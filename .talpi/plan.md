@@ -87,7 +87,7 @@ Contracts:
 
 - [x] ADR — 세이브 코드 회전(세션당 활성 코드 1개, 무유예, 소각 없음,
       침입자 축출 아님).
-- [ ] ADR — redeem 시도 제한(직결 IP·XFF 불신뢰·단일 프로세스 메모리,
+- [x] ADR — redeem 시도 제한(직결 IP·XFF 불신뢰·단일 프로세스 메모리,
       배포 런 재검토 필수).
 - [ ] ADR — `has_save_code` 와 넛지 best-effort(코드 보유 ≠ 실제 기록).
 - [ ] `docs/mechanic-spec.md` 정렬(+ mapping-spec 해당 행 확인) — 상세는
