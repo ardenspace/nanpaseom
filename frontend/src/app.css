@@ -421,6 +421,33 @@ button:disabled {
 .overlay__backdrop--busy {
   cursor: progress;
   animation: backdrop-breathe 2.2s infinite ease-in-out;
+  /* 눌림이 풀리는 건 천천히 — 짧은 탭도 손을 뗀 뒤까지 읽히도록. */
+  transition: background var(--dur-fade) ease-out;
+}
+
+/* 위 두 신호는 폰에 없는 것과 같다: 커서는 포인터 기기 전용이고, breathe 는
+   쉬는 농도(0.7)에서 출발해 300ms 안팎짜리 요청 안에서는 눈에 띄게 짙어지기
+   전에 끝난다. mechanic-spec 은 hover 전용 어포던스를 금지하고 절반이 폰이라고
+   가정하므로, 접촉 그 순간에 답하는 신호를 하나 더 둔다 — 누르는 동안 막이
+   경계면 색으로 한 번 밝아졌다가 손을 떼면 천천히 가라앉는다. 닫히진 않지만
+   눌린 건 안다는 뜻이고, 포인터든 손끝이든 같은 답이 나온다.
+   호흡은 opacity, 눌림은 background 로 채널을 갈라 둔 건 의도 — 실행 중인
+   애니메이션은 같은 속성의 일반 선언을 덮으므로, 눌림에 opacity 를 쓰면
+   매 프레임 breathe 에 먹혀 아무 일도 일어나지 않는다. */
+.overlay__backdrop--busy:active {
+  background: var(--color-abyss-500);
+  transition: none; /* 들어갈 때는 즉시, 나올 때만 위 --dur-fade */
+}
+
+/* 화면 전체가 무한히 밝기를 오르내리는 건 전정 감각에 민감한 사람에게 부담이라,
+   모션을 줄인 환경에서는 호흡을 끄고 그 가장 짙은 지점에 세워 둔다 — 움직임은
+   빼되 "요청 중"이라는 사실은 남는다. 접촉 반응은 그대로 둔다: 눌림은 움직임이
+   아니라 상태이고, 접근성 관점에서 지켜야 할 쪽은 이쪽이다. */
+@media (prefers-reduced-motion: reduce) {
+  .overlay__backdrop--busy {
+    animation: none;
+    opacity: 0.85;
+  }
 }
 
 .overlay__panel {

@@ -125,6 +125,29 @@
   (b) 'ESC 가 대화 중 진입점을 흡수한다' 는 헤더 버튼으로 좁혔다 —
       넛지 배너는 찾지 않아도 뜨는 게 존재 이유라 메뉴 안에서는 넛지일
       수 없다.
+- step 4 (런 리뷰 NOTE 대응, 오케스트레이터 판단으로 수정): 백드롭 완화가
+  폰에서 사실상 없었다 — `cursor: progress` 는 포인터 전용이고,
+  breathe 램프는 정지값 0.7 에서 시작해 ~300ms 요청에서 opacity ≈0.726
+  (2.6포인트)까지만 간다. mechanic-spec:239 "No hover-only affordances".
+  `app.css` 에 `.overlay__backdrop--busy:active { background:
+  var(--color-abyss-500); transition: none }` + 기본 규칙에
+  `transition: background var(--dur-fade) ease-out` 추가 — 들어갈 때
+  즉시, 나올 때만 350ms 페이드라 100ms 탭도 손을 뗀 뒤까지 읽힌다.
+  **핵심 설계**: 누름은 `opacity` 가 아니라 `background` 채널을 쓴다 —
+  실행 중인 애니메이션이 같은 속성의 author 선언을 매 프레임 덮으므로
+  `:active` 의 opacity 는 breathe 에 먹힌다. 채널을 나눠야 합성된다.
+  `prefers-reduced-motion` 가드도 추가(이 레포 최초) — 이번 페이즈가
+  넣은 전체 화면 무한 진동이 WCAG 2.2.2 선에 걸리는 유일한 것이라
+  그것만 스코프. 감축 시 0.7 로 돌아가지 않고 breathe 의 정점 0.85 에
+  정지시켜 '요청 중' 신호는 유지하고, `:active` 피드백은 그대로 작동.
+  **테스트 미작성(근거 있는 판단)**: jsdom 은 히트테스트도 `:active`
+  매칭도 안 하고 `app.css` 를 캐스케이드하지도 않는다 — 쓸 수 있는 건
+  이미 pin 된 `--busy` 클래스 재단언이거나 손으로 쓴 CSS 문자열 단언
+  뿐이라 연극이 된다. 대신 빌드 산출물에서 규칙과 캐스케이드 순서를
+  실증. 49 passed (수 불변).
+  **미검증 1건(솔직히 기록)**: iOS Safari 의 `:active` 는 조상 체인에
+  클릭 반응 노드를 요구하는데 React 19 가 `#root` 에 위임 리스너를 다는
+  구조라 충족된다고 *추론* 했다 — 실기기 확인은 안 됨.
 
 ## Prior work — Phase 6 (완료, 참고용)
 

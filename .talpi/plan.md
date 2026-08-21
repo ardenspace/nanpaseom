@@ -132,3 +132,7 @@ Contracts:
 - [x] `docs/mechanic-spec.md` ESC 메뉴 블록 갱신 — ESC 메뉴는 v1 목표로
       유지(사람 결정), 현재 헤더 세이브 코드 패널은 잠정 구현임을
       명시하고 회전 진입점을 반영. 상세 근거는 ADR 위임.
+- [x] (추가) 백드롭 완화의 폰 대응 — 런 리뷰가 `cursor: progress` 는
+      포인터 전용이고 호흡 램프는 짧은 요청에서 지각 불가라 지적.
+      mechanic-spec 이 "No hover-only affordances" 를 명시하므로 요청된
+      수정이 절반만 된 상태였다. 탭 자체에 반응하는 경로를 추가한다.
