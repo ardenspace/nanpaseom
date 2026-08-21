@@ -112,14 +112,14 @@ NPC 말투가 아닌지, 배너 위치가 입력 바 바로 위인지 같은 것
 확인되지 않는다. 아래 Phase 6(백드롭) 체크리스트도 마찬가지다.
 
 - 일시: 2026-08-21
-- 커밋: `3ea2257`
-- 실행자: 자동 (2차 수락 수정 페이즈 완료 후 재검증)
-- **이 워크가 `7d93282` 워크를 대체한다.** 그 뒤 두 번째 수락 수정
-  페이즈에서 프론트 *표현 코드*가 또 바뀌었다 — `frontend/src/App.tsx`
-  의 `backdropClass(busy)` 클래스 헬퍼, `frontend/src/app.css` 의
-  `.overlay__backdrop--busy` 수식자(커서 `progress` + 숨쉬는 농도).
-  문서만 바뀐 게 아니라 빌드 산출물이 달라졌으므로 이전 워크는 현재
-  빌드를 대신할 수 없어, 시나리오를 처음부터 다시 걸었다.
+- 커밋: `6013e72`
+- 실행자: 자동 (백드롭 완화의 폰 대응 스텝 완료 후 재검증)
+- **이 워크가 `3ea2257` 워크를 대체한다.** 그 뒤 스텝에서 `frontend/src/app.css`
+  가 한 번 더 바뀌었다 — `.overlay__backdrop--busy` 에 `transition`,
+  새 `.overlay__backdrop--busy:active` 눌림 규칙, 그리고
+  `@media (prefers-reduced-motion: reduce)` 블록. CSS 만 바뀌었지만
+  문서가 아닌 제품 파일이라 빌드 산출물이 달라졌고, 이전 워크는 현재
+  빌드를 대신할 수 없어 시나리오를 처음부터 다시 걸었다.
 - 구성: `docker compose` db(5432, 마이그레이션은 부팅 전 수동 적용) +
   `.venv/bin/uvicorn app.api.main:app --port 8765` + llama-server(8080,
   실제 LLM 호출) + `bun run build` 로 갓 빌드한 `frontend/dist`.
@@ -131,20 +131,23 @@ NPC 말투가 아닌지, 배너 위치가 입력 바 바로 위인지 같은 것
 
 | 게이트 | 마지막 줄 |
 |---|---|
-| `.venv/bin/pytest -q` | `364 passed, 2 deselected, 1 warning in 7.01s` |
+| `.venv/bin/pytest -q` | `364 passed, 2 deselected, 1 warning in 7.10s` |
 | `python3 scripts/check_yaml.py` | `All yaml parsed OK.` |
 | `scripts/check_no_hardcoded_dialogue.py` | 출력 없음, exit 0 |
 | `bun run test` | `Tests  49 passed (49)` (6 files) |
-| `bun run build` | `✓ built in 330ms` |
+| `bun run build` | `✓ built in 314ms` |
 
-`frontend/dist` 는 이번에도 실제로 재빌드했다. **이전 워크의 산출물과는
-확실히 다르다** — 청크 해시명이 `index-DBQ5YUJG.js` / `index-Dn07JE7O.css`
-에서 `index-Ca9IiWB-.js` / `index-C7cv27kG.css` 로, `index.html` md5 가
-`b80453dc…` 에서 `f57fa0d5…` 로 바뀌었다. 즉 백드롭 표현 변경은 번들
-바이트에 실제로 들어갔다(minify 된 JS 안에
-`function Z0(O){const X="overlay__backdrop";return O?\`${X} ${X}--busy\`:X}`,
-CSS 에 `.overlay__backdrop--busy { cursor: progress; … }`).
-다만 **이번 재빌드 자체는 무변화**였다 — 빌드 전후 4개 파일 md5 가 모두
+`frontend/dist` 는 이번에도 실제로 재빌드했다. **CSS 번들은 이전 워크의
+산출물과 다르다** — `3ea2257` 소스를 별도 워크트리에서 같은 방식으로
+빌드해 직접 비교했더니 `index-C7cv27kG.css`(9.76 kB, md5 `a9dcd260…`) 였고,
+이번 것은 `index-CG6Lqmlw.css`(9.98 kB, md5 `51369382…`) 다. JS 는 에셋
+파일명 참조를 빼면 바이트가 동일했고(해시명만 `index-Ca9IiWB-.js` →
+`index-5T7yCYgU.js` 로 밀림), `index.html` md5 도 그 참조 때문에
+`f57fa0d5…` → `ebbef50f…` 로 바뀌었다. 즉 이번 변경은 정확히 CSS 만
+움직였다 — 서빙되는 번들 안에서
+`.overlay__backdrop--busy:active{background:var(--color-abyss-500);transition:none}`
+와 `prefers-reduced-motion` 블록을 확인했다.
+다만 **이번 재빌드 자체는 무변화**였다 — 빌드 전후 3개 파일 md5 가 모두
 동일해서, 디스크의 dist 가 이미 이 소스로 빌드돼 있었음이 확인된다.
 `frontend/dist/` 는 `.gitignore` 대상이라 git diff 로는 확인되지 않아
 md5 로 비교했다. 스모크는 이 갓 빌드한 dist 를 서빙하는 서버에 걸었다.
@@ -153,25 +156,25 @@ md5 로 비교했다. 스모크는 이 갓 빌드한 dist 를 서빙하는 서�
 
 | # | 항목 | 결과 | 증거 |
 |---|---|---|---|
-| 1 | 기기 A `POST /session/bootstrap` | PASS | 200, `status=new`, `has_save_code=false`, 오프닝 대사 + 선택지 3개(empathetic/provocative/deflecting), `Set-Cookie: session_uuid=4b5f29bd-…; HttpOnly; Max-Age=15552000; Path=/; SameSite=lax` |
+| 1 | 기기 A `POST /session/bootstrap` | PASS | 200, `status=new`, `has_save_code=false`, 오프닝 대사 + 선택지 3개(empathetic/provocative/deflecting), `Set-Cookie: session_uuid=05fe5411-…; HttpOnly; Max-Age=15552000; Path=/; SameSite=lax` (Secure 없음 — 로컬 예외 그대로) |
 | 2 | 기기 A `POST /turn` × 3 | PASS | 전부 200 `kind=npc`, 실제 LLM 응답(수리공 톤 유지), 5xx 0건 |
-| 3 | `POST /save-code` 2회 | PASS | `HYMN-8FTQ` — `WORD-XXXX` 형식 일치, 두 번 다 **같은 코드**(idempotent). 발급 응답엔 `Set-Cookie` 없음 |
+| 3 | `POST /save-code` 2회 | PASS | `REEF-N5GX` — `WORD-XXXX` 형식 일치, 두 번 다 **같은 코드**(idempotent). 발급 응답엔 `Set-Cookie` 없음 |
 | 4 | 기기 A 재-bootstrap | PASS | `status=resumed`, `has_save_code=true`, history 7개(오프닝 + 3왕복) 그대로 — 되돌아간 것 없음 |
-| 5 | 기기 B(새 자) redeem | PASS | 200 `status=resumed`, history 가 A 의 것과 **완전 일치**(JSON 비교 True), `has_save_code=true`, `Set-Cookie` 로 A 와 같은 `4b5f29bd-…` 재바인딩 |
+| 5 | 기기 B(새 자) redeem | PASS | 200 `status=resumed`, history 가 A 의 것과 **완전 일치**(JSON 비교 True), `has_save_code=true`, `Set-Cookie` 로 A 와 같은 `05fe5411-…` 재바인딩 |
 | 6 | 기기 B `POST /turn` × 2 | PASS | 둘 다 200 `kind=npc` |
-| 7 | **기기 A 원래 쿠키로 재-bootstrap** | **PASS** | history 8개(윈도우 상한) 끝 4개가 B 의 두 턴(`여기 12mm 스패너 가져왔어요…`, `당신 이름은 뭐예요?` + 각 응답)이고 A 의 이전 턴도 그대로 — 어느 기기에서 보든 최신 진행, 되돌아간 것 없음 |
-| 8 | 회전 | PASS | `/save-code/rotate` → `DAWN-3VNU`(옛 `HYMN-8FTQ` 와 다름), 회전 응답에 `Set-Cookie` 없음(계약대로). 새 자에서 **옛 코드 → 404**, **새 코드 → 200 resumed**(같은 `4b5f29bd-…` 세션, history 8개, 재바인딩 쿠키 있음) |
-| 9 | redeem 시도 제한 | PASS | 새 자에서 엉터리 코드(`ZZZZ-0001`~`ZZZZ-0011`) 11연타 → 1~10회 404 + 평소 실패 문구, 11회째 **429** + `rules/save_code.yaml` 의 `redeem_rate_limited_message` 그대로 |
-| 10 | 정적 서빙 / 문서 봉인 | PASS | `GET /` 200 `text/html`, 갓 빌드한 `dist/index.html` 과 **바이트 동일**(md5 `f57fa0d5…`). `/assets/index-Ca9IiWB-.js` 200 `text/javascript`, `/assets/index-C7cv27kG.css` 200 `text/css`, 둘 다 dist 파일과 md5 일치. `/docs` `/redoc` `/openapi.json` 전부 **404** |
+| 7 | **기기 A 원래 쿠키로 재-bootstrap** | **PASS** | history 8개(윈도우 상한) 끝 4개가 B 의 두 턴(`그럼 배 밑바닥이 썩었다고 칩시다…`, `당신이 여기 오기 전 일은 기억나요?` + 각 응답)이고 A 의 이전 턴도 그대로 — 어느 기기에서 보든 최신 진행, 되돌아간 것 없음 |
+| 8 | 회전 | PASS | `/save-code/rotate` → `DEEP-9W35`(옛 `REEF-N5GX` 와 다름), 회전 응답에 `Set-Cookie` 없음(계약대로). 새 자에서 **옛 코드 → 404**, **새 코드 → 200 resumed**(같은 `05fe5411-…` 세션, history 8개, 재바인딩 쿠키 있음) |
+| 9 | redeem 시도 제한 | PASS | 새 자에서 엉터리 코드(`ZZZZ-0001`~`ZZZZ-00011`) 11연타 → 1~10회 404 + 평소 실패 문구, 11회째 **429** + `rules/save_code.yaml` 의 `redeem_rate_limited_message` 그대로 |
+| 10 | 정적 서빙 / 문서 봉인 | PASS | `GET /` 200 `text/html`, 갓 빌드한 `dist/index.html` 과 **바이트 동일**(md5 `ebbef50f…`). `/assets/index-5T7yCYgU.js` 200(205243 B), `/assets/index-CG6Lqmlw.css` 200(9976 B), 둘 다 dist 파일과 크기·내용 일치. `/docs` `/redoc` `/openapi.json` 전부 **404** |
 
-서버 로그에 5xx / Traceback 0건. 상태 코드 집계: 200 × 16, 404 × 14,
-429 × 1 (404 14건 = 문서 봉인 3 + 옛 코드 1 + 제한 워크 10).
+서버 로그에 5xx / Traceback 0건. 상태 코드 집계: 404 × 14,
+429 × 1, 나머지 전부 200 (404 14건 = 문서 봉인 3 + 옛 코드 1 + 제한 워크 10).
 
 ### 절차 메모 / 눈에 띈 것
 
-- 9번(시도 제한)을 마지막에 걸었지만, 5·8번에서 이미 redeem 예산 4회를
+- 9번(시도 제한)을 마지막에 걸었지만, 5·8번에서 이미 redeem 예산 3회를
   썼기 때문에 "10회까지 404, 11회째 429" 를 그대로 관측하려면 예산이
-  깨끗해야 했다. 그래서 8번과 9번 사이에 uvicorn 을 한 번 재시작해
+  깨끗해야 했다. 그래서 9번 직전에 uvicorn 을 한 번 재시작해
   카운터를 리셋했다(프로세스 메모리 저장 — 위 Phase 2 체크리스트에
   적힌 것과 같은 성질). 재시작 뒤 세션·세이브 코드·history 는 DB 에
   있으므로 아무것도 잃지 않는다.
@@ -182,11 +185,12 @@ md5 로 비교했다. 스모크는 이 갓 빌드한 dist 를 서빙하는 서�
 - 서버는 기동 시 마이그레이션을 적용하지 않는다(`apply_migrations` 는
   테스트/수동 경로에서만 호출). 이 워크도 사전에 수동으로 적용해
   띄웠다. 로컬/배포 절차의 문제일 뿐 제품 동작은 아니다.
-- **이전 두 워크(`afd8f4e`, `7d93282`) 대비 HTTP 동작 차이 0건.** 이번
-  변경(백드롭 busy 클래스)은 예상대로 HTTP 표면에 흔적을 남기지 않았다 —
-  단, 서빙되는 번들 *바이트* 에는 들어 있음을 위에서 확인했다. 커서가
-  `progress` 로 바뀌는지, 백드롭이 숨쉬는지는 브라우저에서만 보이므로
-  아래 Phase 6 체크리스트로 사람이 걸어야 한다.
+- **이전 세 워크(`afd8f4e`, `7d93282`, `3ea2257`) 대비 HTTP 동작 차이
+  0건.** 이번 변경(백드롭 눌림 + 모션 축소)은 예상대로 HTTP 표면에
+  흔적을 남기지 않았다 — 단, 서빙되는 CSS *바이트* 에는 들어 있음을
+  위에서 확인했다. 누른 순간 배경이 밝아지는지, 모션을 줄인 환경에서
+  호흡이 멈추는지는 브라우저에서만 보이므로 아래 Phase 6 체크리스트로
+  사람이 걸어야 한다.
 - 놀란 점 없음. 8번 회전의 `Set-Cookie` 부재, 3번 발급의 `Set-Cookie`
   부재, redeem 성공 시의 재바인딩 모두 코드 주석의 계약과 일치했다.
 
@@ -206,3 +210,14 @@ md5 로 비교했다. 스모크는 이 갓 빌드한 dist 를 서빙하는 서�
       그대로 남고, 회전이 끝난 뒤 채팅이 정상 동작하는가. (수정 전에는
       채팅 전체가 얼고 NPC 타이핑 표시가 진행 중이 아닌 턴을 진행 중인
       것처럼 보여줬다.)
+- [ ] **누른 순간 배경이 답하는가**: 요청이 나가 있는 동안(응답 오기 전)
+      다이얼로그 바깥 어두운 영역을 누른다. 누르고 있는 그 순간 배경이
+      한 번 밝아졌다가 손을 떼면 천천히 가라앉는가. **마우스와 폰 양쪽에서
+      확인한다 — 폰이 핵심이다**(커서 `progress` 도 숨쉬는 농도도 폰에는
+      사실상 없는 신호라, 접촉에 답하는 건 이것뿐이다). 짧게 톡 쳐도
+      눌린 게 읽히는가.
+- [ ] **동작 줄이기에서도 '요청 중'이 보이는가**: OS 의 '동작 줄이기'
+      (reduce motion / 손쉬운 사용 → 동작 줄이기)를 켠 뒤 같은 요청을
+      건다. 배경이 오르내리며 흔들리지 않으면서도, 평소보다 짙게 서 있어
+      '지금 요청 중'이라는 건 여전히 읽히는가. 이 상태에서도 위의 눌림
+      반응은 그대로 살아 있는가.
