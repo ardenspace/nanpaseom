@@ -81,7 +81,24 @@
   공유 단언. Secure 유무는 호출부가 각자 단언한다(발급 표면 = 항상 있다,
   env 매트릭스 = 있냐 없냐가 관찰 대상).
 
-## Prior work this phase (Phase 2 — 회전과 추측 방어)
+## Prior work this phase (Phase 3 — 갈아타기 탈출구)
+
+- step 1: B4 계약 pin — `frontend/src/App.replaceConfirm.test.tsx` 12건.
+  **회귀 절반 5건은 즉시 통과**(상시 입구 2, 무조건 확인 2, 취소 시
+  입력 보존·무요청 1) = 배포된 동작 무손상 확인. **탈출구 절반 7건 red**
+  (버튼 부재). 실패 분기 4종(401/밴/503/네트워크)은 각각 (a) 공통 실패
+  문구 노출 + 복사 컨트롤 없음, (b) **redeem 이 계속 가능**(확인 버튼
+  살아 있고 실제로 `/save-code/redeem` 이 나가 채팅 진입)까지 단언 —
+  (b)가 계약의 하중 부분.
+  tone 신규: `REPLACE_RESCUE_CODE` / `REPLACE_RESCUE_FAILED`.
+  복사 컨트롤은 기존 `SAVE_CODE_COPY` / `SAVE_CODE_COPIED` 승계.
+  **구현이 지켜야 할 pin 결정**: 실패 문구는 원인별로 나누지 않고 공통
+  1개(단, 서버 `ban_reason`/`message` 를 *추가로* 렌더하는 건 허용 —
+  공통 문구를 *대체*하면 안 됨). 실패 시 복사 컨트롤은 없어야 한다.
+  **미pin 2건**: 탈출구가 '이 기기의' 세션 코드인지(jsdom 은 쿠키를
+  안 나름 — 그건 B2 서버 계약 몫), 클립보드 *성공* 라벨 전환.
+
+## Prior work — Phase 2 (완료, 참고용)
 
 - step 1: vitest 도입 — `frontend/vite.config.ts` 에 `test` 블록(jsdom,
   `src/**/*.test.ts(x)`, setup 파일, `globals:false`). 프로덕션 빌드와
