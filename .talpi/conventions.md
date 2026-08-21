@@ -82,6 +82,14 @@
   `tests/safety/test_strike.py` — B7 예외 pin + `python -O` 생존 pin.
   `tests/api/test_identity_contracts.py` — B7 도달 불가(호출부 전제) pin.
   `tests/api/conftest.py` — `cookie_attrs` 승격.
+- step 2: `app/api/session_cookie.py` — `INSECURE_COOKIE_ON_VALUES =
+  frozenset({"1","true"})` 허용목록 판정(`_FALSY_ENV_VALUES` 폐지,
+  `.strip()` 제거 → 공백 포함 값은 OFF). B6 33/33 green.
+  **Phase 5 인계**: ADR 0034 clause 2("플래그가 켜진 경우에만 Secure
+  생략")가 "켜짐"을 정의하지 않으므로 개정/보충 필요 — 이 반전의 단일
+  홈을 ADR 0034 개정으로 할지 신규 ADR로 할지 Phase 5에서 결정.
+  레포 전역 grep 결과 `.env.example`/compose/배포 스크립트에 이 env
+  참조 없음(= 손으로 세팅한 dev env 외 영향 없음).
 
 이번 런에서 생길 것 (구현자가 만들면서 여기에 등록):
 

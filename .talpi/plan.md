@@ -12,7 +12,7 @@ Contracts: B6, B7
       `"on"`·빈값은 꺼짐)과 B7 예외 실패(+ 기존 호출부 전제 만족)를
       실패 테스트로 먼저 작성. 기존 falsy 6종 pin 테스트를 허용목록
       의미로 갱신하는 것도 이 단계.
-- [ ] `session_cookie.py` 판정 반전 구현 — falsy 목록 방식 폐지,
+- [x] `session_cookie.py` 판정 반전 구현 — falsy 목록 방식 폐지,
       허용목록만 Secure 생략.
 - [ ] `strike.register` 전제 위반을 실제 예외로 — bare `assert` 금지
       (`python -O` 에서 조용한 무동작으로 되돌아가므로).
