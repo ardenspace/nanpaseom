@@ -69,7 +69,7 @@ Contracts: B4
 
 Contracts: B2b, B5
 
-- [ ] 계약 pin: B2b(진입 응답 `has_save_code` — bootstrap과 redeem 양쪽,
+- [x] 계약 pin: B2b(진입 응답 `has_save_code` — bootstrap과 redeem 양쪽,
       기존 필드 불변) + B5(코드 보유 세션엔 절대 미노출, 임계값 경계 양쪽,
       닫으면 재노출 없음, 코드 없는 새 세션 진입 시 재노출)를 실패
       테스트로 작성.

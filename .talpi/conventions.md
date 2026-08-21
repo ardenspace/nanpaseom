@@ -81,7 +81,43 @@
   공유 단언. Secure 유무는 호출부가 각자 단언한다(발급 표면 = 항상 있다,
   env 매트릭스 = 있냐 없냐가 관찰 대상).
 
-## Prior work this phase (Phase 3 — 갈아타기 탈출구)
+## Prior work this phase (Phase 4 — 코드 뽑기 넛지)
+
+- step 1: B2b/B5 계약 pin.
+  `tests/api/test_has_save_code.py` (12건) — bootstrap new/resumed +
+  redeem 양쪽에 필드, 발급/회전 후 true, 기존 필드 불변, 본문에 세션
+  식별자 없음(회귀 가드, 지금도 통과).
+  `frontend/src/saveCodeNudge.test.ts` (12건, 순수 함수 단위) +
+  `frontend/src/App.saveCodeNudge.test.tsx` (8건, 컴포넌트).
+  **구현이 제공해야 할 모듈**: `frontend/src/saveCodeNudge.ts` —
+  `shouldShowSaveCodeNudge({hasSaveCode, turnCount, dismissed})`,
+  `readNudgeDismissed()`, `markNudgeDismissed()`,
+  `clearNudgeDismissed()`(코드 없는 **new** 진입에서만 호출).
+  현재는 throw 하는 시그니처 스텁 — 테스트가 typecheck 대상이라
+  모듈이 없으면 `bun run build` 가 깨지기 때문(스텁이면 tsc 는 통과하고
+  테스트는 미구현으로 실패).
+  tone 신규: `SAVE_CODE_NUDGE_AFTER_TURNS = 6`(튜닝 홈),
+  `SAVE_CODE_NUDGE_BODY`, `SAVE_CODE_NUDGE_DISMISS`.
+  **미pin**: 회전 단독 트리거(회전은 발급 뒤에만 도달 가능 — "발급이
+  세운 것을 회전이 무너뜨리지 않는다"로만 관찰), resumed 진입의
+  turnCount 시드(아래 오케스트레이터 결정으로 확정).
+
+### 오케스트레이터 결정 (step 1 질문 4건 — 전부 Ledger 위임 범위)
+
+1. **resumed + 코드 없음 → 즉시 노출 대상**(dismissed 아니면). 이유:
+   resumed 라는 사실 자체가 지킬 진행이 있다는 뜻이고, `_resumed_payload`
+   의 history 는 limit=8 로 잘려 있어 거기서 턴 수를 세면 임의의 숫자를
+   지어내는 것이다. 40턴 쌓고 코드 없는 복귀자가 넛지의 정확한 표적이라
+   더 기다리게 하면 안 된다.
+2. **임계값 6턴 유지** (신규 세션 기준). tone 홈에서 튜닝 가능.
+3. **넛지에 행동 버튼을 단다** — 닫기만 있으면 플레이어가 헤더 버튼을
+   스스로 찾아야 해서 넛지의 목적을 절반만 달성한다. 기존 세이브 코드
+   발급 경로를 여는 컨트롤 + tone 상수 신규(step 3).
+4. **banned / 503 응답에는 `has_save_code` 를 싣지 않는다** — 계약이
+   성공 진입 응답으로 한정하고, 밴 세션은 넛지 대상이 아니며 503 은
+   보고할 세션 상태가 없다.
+
+## Prior work — Phase 3 (완료, 참고용)
 
 - step 1: B4 계약 pin — `frontend/src/App.replaceConfirm.test.tsx` 12건.
   **회귀 절반 5건은 즉시 통과**(상시 입구 2, 무조건 확인 2, 취소 시
