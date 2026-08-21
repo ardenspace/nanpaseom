@@ -81,7 +81,23 @@
   공유 단언. Secure 유무는 호출부가 각자 단언한다(발급 표면 = 항상 있다,
   env 매트릭스 = 있냐 없냐가 관찰 대상).
 
-## Prior work this phase (Phase 4 — 코드 뽑기 넛지)
+## Prior work this phase (Phase 5 — 기록과 확증)
+
+- step 1: `docs/adr/0038-save-code-rotation.md` — 회전 8개 결정(단일
+  활성 코드/무유예/소각 없음/오타와 구분 안 함/축출 아님/발급과 분리/
+  confirm-first/스테일 표시 감수). 0033·0034·0036·0037 은 인용만.
+  네임스페이스는 `15 × 31^4 ≈ 1,385만` 로 유도식과 함께 적어 숫자가
+  `SAVE_CODE_PREFIX_WORDS` 와 드리프트하지 않게 했다.
+  **step 4 인계 2건**:
+  (a) ADR 0034 의 재검토 목록에 "유출 시 무효화/회전 경로 없음" 이
+      그대로 남아 있어 이제 거짓 — 0034 가 그 목록의 단일 서식지이므로
+      거기서 "이미 들어온 자를 축출할 경로 없음(회전은 ADR 0038)" 로
+      갱신해야 한다.
+  (b) `app/save_code.py:61` 주석 `SAVE_CODE_MINT_ATTEMPTS = 20
+      # 31^8 공간` 은 0036 이전(완전 랜덤) 근거라 낡았다 — 실제 공간은
+      ~1,385만(2^23.8). 재시도 상한 20 자체는 유효.
+
+## Prior work — Phase 4 (완료, 참고용)
 
 - step 1: B2b/B5 계약 pin.
   `tests/api/test_has_save_code.py` (12건) — bootstrap new/resumed +
