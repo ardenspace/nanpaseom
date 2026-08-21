@@ -83,7 +83,14 @@
 
 ## Prior work this phase (Phase 6 — Acceptance fixes)
 
-(아직 없음 — 첫 스텝 진행 중.)
+- step 1: `tests/api/test_identity_contracts.py` 의 사설
+  `_set_save_code` 제거 → conftest 의 `set_save_code` 사용(호출부 4곳).
+  grep 결과 세 번째 복사본은 없었고 나머지 4개 모듈은 이미 공유본을
+  쓰고 있었다 — 이 파일이 마지막 홀드아웃.
+  부수 효과(안전한 방향): conftest 판은 쓰기 전에 `SAVE_CODE_RE` 를
+  단언하는 상위집합이라, 이 모듈의 코드 4개도 이제 형식 검증을 거친다
+  (전부 통과 — 앞으로 오타는 조용히 쓰이지 않고 시끄럽게 실패).
+  364 passed (수 불변).
 
 ## Prior work — Phase 5 (완료, 참고용)
 

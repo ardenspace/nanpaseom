@@ -103,7 +103,7 @@ Contracts:
 
 Contracts:
 
-- [ ] `tests/api/test_identity_contracts.py` 의 사설 `_set_save_code` 제거 —
+- [x] `tests/api/test_identity_contracts.py` 의 사설 `_set_save_code` 제거 —
       Phase 2가 conftest로 승격한 `set_save_code` 를 쓴다(쌍둥이 누락분).
 - [ ] App 컴포넌트 테스트 4개의 fetch 스텁 통합 — `stubServer`/`Reply`/
       `json`/`jsonOk` 가 파일마다 제각각. 공유 테스트 헬퍼로 승격하고

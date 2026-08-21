@@ -51,6 +51,7 @@ from tests.api.conftest import (
     raising_llm,
     session_cookie_headers,
     session_row_exists,
+    set_save_code,
 )
 
 TURN_URL = "/turn"
@@ -74,11 +75,6 @@ def _banned_session() -> str:
     with db_conn() as c:
         repo.ban_session(c, sid, "누적 경고로 대화가 차단됐습니다.")
     return sid
-
-
-def _set_save_code(sid: str, code: str) -> None:
-    with db_conn() as c:
-        c.execute("UPDATE sessions SET save_code = %s WHERE session_uuid = %s", (code, sid))
 
 
 def _assert_full_secure_cookie(response) -> None:
@@ -312,7 +308,7 @@ def test_redeem_resumed_rebind_cookie_has_all_security_attributes(client, monkey
     """발급 단일 경로 계약 — redeem 성공 rebind 도 같은 속성 4종을 받는다."""
     monkeypatch.delenv(INSECURE_COOKIE_ENV, raising=False)
     sid = known_session(turns=1)
-    _set_save_code(sid, "QRST-2345")
+    set_save_code(sid, "QRST-2345")
     r = client.post(REDEEM_URL, json={"code": "QRST-2345"})
     assert r.status_code == 200
     assert r.json()["status"] == "resumed"
@@ -322,7 +318,7 @@ def test_redeem_resumed_rebind_cookie_has_all_security_attributes(client, monkey
 def test_redeem_new_rebind_cookie_has_all_security_attributes(client, monkeypatch):
     monkeypatch.delenv(INSECURE_COOKIE_ENV, raising=False)
     sid = known_session(turns=0)
-    _set_save_code(sid, "BCDE-FGHJ")
+    set_save_code(sid, "BCDE-FGHJ")
     r = client.post(REDEEM_URL, json={"code": "BCDE-FGHJ"})
     assert r.status_code == 200
     assert r.json()["status"] == "new"
@@ -332,14 +328,14 @@ def test_redeem_new_rebind_cookie_has_all_security_attributes(client, monkeypatc
 def test_redeem_success_bodies_have_no_session_uuid(client):
     """자격증명은 redeem 응답 본문에도 없다 (기기 이동은 쿠키 rebind 로 이어진다)."""
     sid = known_session(turns=1)
-    _set_save_code(sid, "MNPQ-6789")
+    set_save_code(sid, "MNPQ-6789")
     body = client.post(REDEEM_URL, json={"code": "MNPQ-6789"}).json()
     assert body["status"] == "resumed"
     assert "session_uuid" not in body
 
     client.cookies.clear()
     sid0 = known_session(turns=0)
-    _set_save_code(sid0, "TUVW-2346")
+    set_save_code(sid0, "TUVW-2346")
     body0 = client.post(REDEEM_URL, json={"code": "TUVW-2346"}).json()
     assert body0["status"] == "new"
     assert "session_uuid" not in body0
