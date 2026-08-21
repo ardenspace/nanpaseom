@@ -81,3 +81,5 @@
 - [2026-08-21T10:54:53Z] phase 6 verified
 - [2026-08-21T10:54:53Z] phase 6 reported
 - [2026-08-21T11:01:43Z] smoke walked (at: 7d93282)
+- [2026-08-21T11:08:01Z] run review (through 4b9a106): 1 findings (0 fixed, 1 noted)
+- [2026-08-21T11:08:01Z] final report sent, awaiting acceptance
