@@ -34,6 +34,11 @@ export type TurnDeps = {
    *  401 복구의 *재시도* 는 같은 턴이므로 다시 세지 않는다. 새 세션으로 갈아탄
    *  경우의 리셋은 enterChat 소유 (진입이 카운터의 홈). */
   onTurnSent: () => void;
+  /** 진입 응답이 알려준 코드 보유 상태 (B2b) — 그 시점의 진실이므로 그대로 반영한다.
+   *  401 복구가 화면을 유지하는 resumed 분기에서도 이 값만은 서버 권한이다: 쿠키가
+   *  가리키는 세션이 바뀌었을 수 있고(다른 탭의 코드 사용 등), 코드를 가진 세션에
+   *  넛지를 노출하는 것은 B5 위반이다. 히스토리(표시 상태)는 계속 버린다. */
+  onEntrySaveCode: (hasSaveCode: boolean) => void;
   setChoices: (choices: Choice[]) => void;
   /** 차단 화면 전환 — 사유 표시 + 선택지 봉인 + 화면 교체. */
   showBanned: (reason: string) => void;
@@ -50,6 +55,7 @@ export function useTurn(deps: TurnDeps): {
     npcId,
     pushMsg,
     onTurnSent,
+    onEntrySaveCode,
     setChoices,
     showBanned,
     enterChat,
@@ -99,6 +105,9 @@ export function useTurn(deps: TurnDeps): {
       } else if (b.data.status === "banned") {
         showBanned(b.data.ban_reason ?? "");
       } else if (b.data.status === "resumed") {
+        // 화면은 그대로 두지만(히스토리는 버린다) 코드 보유 상태만은 이 응답이
+        // 권한이다 — 쿠키가 코드를 가진 세션으로 재바인딩됐을 수 있다 (B2b/B5).
+        onEntrySaveCode(b.data.has_save_code === true);
         // 세션 복구됨 — 보류된 턴을 정확히 1회 재시도. 또 401 이면
         // 재bootstrap 없이 정직하게 알리고 멈춘다 (무한 루프 금지).
         const retry = await postJson<TurnData>("/turn", {

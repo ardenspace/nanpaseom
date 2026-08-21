@@ -148,6 +148,20 @@
   `SAVE_CODE_BUTTON` 과 일부러 다른 문구 — 동시에 화면에 있어도 헷갈리지
   않게). 행동 버튼은 `issueSaveCode()` 재사용 = 코드 표시 표면을 하나로.
   **App.tsx 606 → 684줄.** 프론트 44/44, pytest 364 passed.
+- 검증 [FIX] 2건 해소:
+  (1) **B5 위반 경로**였다 — 401→`resumed` 복구 분기가 복구 bootstrap 의
+  서버 권위 `has_save_code` 를 버려서, 다른 탭이 코드를 redeem 해 쿠키가
+  코드 보유 세션으로 재바인딩된 경우 넛지가 뜰 수 있었다. `TurnDeps` 에
+  `onEntrySaveCode(hasSaveCode)` 추가로 플래그만 존중(history 는 계속
+  버린다 — 화면 유지가 그 분기의 의도이고 401 회귀 6건이 그걸 pin).
+  회귀 테스트 1건 추가(45/45).
+  (2) **신규 공유 유틸**: `frontend/src/localFlag.ts` —
+  `localFlag(key) → { read, mark, clear }` guarded localStorage 플래그.
+  `playedHint.ts` 와 `saveCodeNudge.ts` 가 공유(키는 각 모듈이 소유).
+  공개 API 이름은 계약 pin 이라 그대로.
+  **관찰(계약상 정상)**: `has_save_code` 가 빠진 resumed 응답은 false 로
+  읽혀 넛지가 다시 열릴 수 있다 — B2b 가 모든 진입 shape 에 필드를
+  보장하므로 규격 위반 응답에서만 발생.
 
 ## Prior work — Phase 3 (완료, 참고용)
 

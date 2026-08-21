@@ -14,6 +14,8 @@ import App from "./App";
 import {
   BANNED_TITLE,
   FREE_INPUT_PLACEHOLDER,
+  SAVE_CODE_NUDGE_AFTER_TURNS,
+  SAVE_CODE_NUDGE_BODY,
   SEND_BUTTON,
   SERVER_UNREACHABLE,
   SESSION_RESTORE_FAILED,
@@ -26,6 +28,7 @@ const TURN = "/turn";
 const OPENING = "npc opening (stub)";
 const SECOND_OPENING = "npc opening after new session (stub)";
 const RECOVERED_REPLY = "npc reply after recovery (stub)";
+const LATER_REPLY = "npc reply after recovery, later turn (stub)";
 const STALE_HISTORY = "stale resumed history line (stub)";
 const PLAYER_INPUT = "player input (stub)";
 const SERVER_ERROR_MESSAGE = "server side error message (stub)";
@@ -190,6 +193,61 @@ describe("turn 401 auto recovery", () => {
     await screen.findByText(BANNED_TITLE);
     expect(screen.getByText(BAN_REASON)).toBeTruthy();
     expect(calls).toEqual([BOOTSTRAP, TURN, BOOTSTRAP]);
+  });
+
+  // B2b/B5 회귀 pin — 복구 응답의 has_save_code 는 서버 권한이라 화면을 유지하는
+  // resumed 분기에서도 반영된다. 히스토리(표시 상태)는 계속 버린다는 비대칭도 함께
+  // 잰다: 코드를 가진 세션에 넛지를 노출하면 B5 위반이다.
+  it("honors has_save_code from the recovery bootstrap while still discarding its history", async () => {
+    const laterTurns = Array.from(
+      { length: SAVE_CODE_NUDGE_AFTER_TURNS - 1 },
+      (_, i) =>
+        json(200, { kind: "npc", reply: `${LATER_REPLY}/${i}`, choices: [] }),
+    );
+    const calls = stubServer({
+      [BOOTSTRAP]: [
+        // 코드 없는 새 세션으로 진입 — 넛지가 열려 있는 상태에서 출발한다.
+        json(200, {
+          status: "new",
+          npc_id: "surigong",
+          reply: OPENING,
+          choices: [],
+          has_save_code: false,
+        }),
+        // 복구 시점의 쿠키는 코드를 가진 세션을 가리킨다 (다른 탭의 코드 사용 등).
+        json(200, {
+          status: "resumed",
+          npc_id: "surigong",
+          history: [{ role: "npc", content: STALE_HISTORY }],
+          choices: [],
+          has_save_code: true,
+        }),
+      ],
+      [TURN]: [
+        unauthorizedTurn,
+        json(200, { kind: "npc", reply: RECOVERED_REPLY, choices: [] }),
+        ...laterTurns,
+      ],
+    });
+
+    await sendOneTurn();
+    await screen.findByText(RECOVERED_REPLY);
+
+    // 임계값까지 턴을 쌓는다 (401 로 보낸 첫 턴 포함 — 재시도는 다시 세지 않는다).
+    for (let i = 0; i < SAVE_CODE_NUDGE_AFTER_TURNS - 1; i++) {
+      const field = await screen.findByPlaceholderText(FREE_INPUT_PLACEHOLDER);
+      fireEvent.change(field, { target: { value: `${PLAYER_INPUT}/${i}` } });
+      fireEvent.click(screen.getByRole("button", { name: SEND_BUTTON }));
+      await screen.findByText(`${LATER_REPLY}/${i}`);
+    }
+
+    // 코드를 가진 세션 — 임계값을 넘겨도 넛지는 절대 나오지 않는다.
+    expect(document.body.textContent ?? "").not.toContain(SAVE_CODE_NUDGE_BODY);
+    // 화면은 그대로 — 복구 응답의 히스토리는 여전히 버려진다.
+    expect(screen.getByText(OPENING)).toBeTruthy();
+    expect(screen.queryByText(STALE_HISTORY)).toBeNull();
+    // 재bootstrap 은 여전히 1회뿐 (추가 왕복 없음).
+    expect(calls.filter((p) => p === BOOTSTRAP)).toHaveLength(2);
   });
 
   it("shows the server message when the recovery bootstrap itself errors", async () => {

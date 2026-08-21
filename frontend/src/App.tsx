@@ -205,6 +205,7 @@ export default function App() {
     npcId,
     pushMsg,
     onTurnSent: () => setTurnCount((n) => n + 1),
+    onEntrySaveCode: setHasSaveCode,
     setChoices,
     showBanned,
     enterChat,

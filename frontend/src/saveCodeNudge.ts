@@ -5,11 +5,16 @@
 // tone.ts (프론트 튜닝 값의 단일 홈) 에 산다 — 두 곳 중복 금지.
 //
 // dismiss 플래그는 localStorage — 기존 재방문 힌트(playedHint.ts)와 같은 저장소,
-// 같은 모양. 세션 신원/진행은 절대 여기 두지 않는다 (신원은 쿠키 단일 소스).
+// 같은 모양이라 가드된 접근 자체는 localFlag.ts 가 소유한다 (중복 금지). 여기 남는
+// 것은 이 플래그의 *의미* 뿐. 세션 신원/진행은 절대 여기 두지 않는다 (신원은 쿠키
+// 단일 소스).
 
+import { localFlag } from "./localFlag";
 import { SAVE_CODE_NUDGE_AFTER_TURNS } from "./tone";
 
 const NUDGE_DISMISSED_KEY = "nanpaseom.saveCodeNudgeDismissed";
+
+const dismissedFlag = localFlag(NUDGE_DISMISSED_KEY);
 
 /** 넛지 판정의 입력 — 전부 관측 가능한 세션 상태.
  *
@@ -37,28 +42,16 @@ export function shouldShowSaveCodeNudge(state: NudgeState): boolean {
 
 /** 이 기기에서 넛지를 닫은 적이 있는가. 저장소를 못 읽으면 false (무해한 재노출). */
 export function readNudgeDismissed(): boolean {
-  try {
-    return localStorage.getItem(NUDGE_DISMISSED_KEY) === "1";
-  } catch {
-    return false; // 프라이버시 모드 등 — 닫은 적 없음으로 취급 (기록된 한계).
-  }
+  return dismissedFlag.read();
 }
 
 /** 넛지를 닫았다고 이 기기에 기록. 저장 실패는 무해 — 다음에 다시 보일 뿐. */
 export function markNudgeDismissed(): void {
-  try {
-    localStorage.setItem(NUDGE_DISMISSED_KEY, "1");
-  } catch {
-    // 넛지 하나 때문에 화면이 깨지면 안 된다 — 던지지 않는 것이 계약.
-  }
+  dismissedFlag.mark();
 }
 
 /** dismiss 기록 해제 — 이 기기에서 *코드 없는 새 세션* 으로 진입했을 때만.
  *  쿠키가 사라져 새 세션이 된 플레이어가 넛지를 영영 못 보는 상태를 막는다. */
 export function clearNudgeDismissed(): void {
-  try {
-    localStorage.removeItem(NUDGE_DISMISSED_KEY);
-  } catch {
-    // 해제 실패도 무해 — 넛지가 안 보일 뿐 진행은 그대로다.
-  }
+  dismissedFlag.clear();
 }
