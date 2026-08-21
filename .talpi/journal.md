@@ -52,3 +52,5 @@
 - [2026-08-20T18:36:01Z] run started over done run
 - [2026-08-21T02:51:39Z] spec approved
 - [2026-08-21T04:08:18Z] plan approved, 5 phases
+- [2026-08-21T04:09:04Z] phase 1 started (base: 43100f966c9af2a28db605a344e5d010e012808f)
+- [2026-08-21T04:16:08Z] phase 1 contracts pinned

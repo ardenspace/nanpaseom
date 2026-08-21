@@ -13,23 +13,34 @@
   0턴 재진입 = new + 같은 세션 재사용, 503 에도 세션 존속 + Set-Cookie, banned
   포함 모든 status 에 Set-Cookie (이상 현행 유지). 응답 본문에 session_uuid 없음.
 - B6 세션 쿠키: ``HttpOnly; Secure; SameSite=Lax; Max-Age=15552000; Path=/``.
-  env 플래그(이 모듈이 ``NANPASEOM_INSECURE_COOKIE`` 로 확정)가 켜진 경우에만
-  Secure 생략. 발급 전 표면(bootstrap 4종 + redeem 성공 rebind) 커버.
+  env 플래그 ``NANPASEOM_INSECURE_COOKIE`` 가 켜진 경우에만 Secure 생략.
+  발급 전 표면(bootstrap 4종 + redeem 성공 rebind) 커버. 어떤 env *값*이
+  켜짐이냐(허용목록 계약)는 tests/api/test_cookie_env_flag.py 소관.
   자격증명 session_uuid 는 **어떤 응답 본문에도 싣지 않는다** (redeem 포함).
 - B7 해석기: 쿠키 인증 엔드포인트(/turn, /save-code)의 신원 판정은 세션을 절대
   만들지 않는다 — 행동 관찰로 박제 (모르는 세션 → 거부 + sessions 행 미생성).
   /save-code 의 401 게이트 자체는 Phase 2 (B3) 소관 — 여기서는 미생성만.
+  더해서 strike.register 하드닝(미지의 세션 → 즉시 실패)이 **기존 호출부에서
+  도달 불가**임을 박제 — 플레이어가 /turn 중 500 을 보는 일은 없다.
+  (하드닝 자체는 tests/safety/test_strike.py 소관.)
 
 Max-Age 는 계약 리터럴 15552000 (180일) 을 직접 pin — 구현 상수 import 는
 동어반복이라 하지 않는다.
+
+길이(~300 줄 초과) 사유 기록: 이 모듈의 테스트들은 쿠키 신원이라는 **하나의
+행동 축**을 공유하고 `_turn` / `_assert_401_error` / `_banned_session` /
+`_assert_full_secure_cookie` 라는 같은 헬퍼 세트로 쓰인다. 계약(B1/B2/B6/B7)
+별로 쪼개면 헬퍼가 conftest 로 흩어지고 "쿠키 신원 계약 한 파일" 이라는
+읽는 순서가 깨진다. 축이 다른 것 하나(env 값 판정)는 실제로 분리했다
+→ test_cookie_env_flag.py.
 """
 
 import uuid
 
-import pytest
-
+from app.safety.rules import load_safety_rules
 from app.store import repo
 from tests.api.conftest import (
+    cookie_attrs,
     cookie_value,
     count_sessions,
     db_conn,
@@ -70,22 +81,13 @@ def _set_save_code(sid: str, code: str) -> None:
         c.execute("UPDATE sessions SET save_code = %s WHERE session_uuid = %s", (code, sid))
 
 
-def _cookie_attrs(header: str) -> dict[str, str | None]:
-    """Set-Cookie 속성을 소문자 키 dict 로 (값 없는 속성은 None)."""
-    attrs: dict[str, str | None] = {}
-    for part in header.split(";")[1:]:
-        key, sep, val = part.strip().partition("=")
-        attrs[key.lower()] = val.strip() if sep else None
-    return attrs
-
-
 def _assert_full_secure_cookie(response) -> None:
     """B6 — 속성 4종 + Path + 서버 민팅 UUID 값. 발급 전 표면에 공통 적용."""
     headers = session_cookie_headers(response)
     assert headers, "session_uuid Set-Cookie 가 없다"
     for h in headers:
         uuid.UUID(cookie_value(h))  # 값 = 서버가 민팅한 UUID 문자열
-        attrs = _cookie_attrs(h)
+        attrs = cookie_attrs(h)
         assert "httponly" in attrs
         assert "secure" in attrs
         assert (attrs.get("samesite") or "").lower() == "lax"
@@ -330,33 +332,6 @@ def test_redeem_new_rebind_cookie_has_all_security_attributes(client, monkeypatc
     _assert_full_secure_cookie(r)
 
 
-def test_insecure_env_flag_omits_only_secure(client, monkeypatch):
-    """로컬 개발 예외 하나 — 플래그가 켜진 경우에만 Secure 생략, 나머지 속성 유지."""
-    monkeypatch.setenv(INSECURE_COOKIE_ENV, "1")
-    r = client.post(BOOTSTRAP_URL)
-    headers = session_cookie_headers(r)
-    assert headers
-    for h in headers:
-        attrs = _cookie_attrs(h)
-        assert "secure" not in attrs
-        assert "httponly" in attrs
-        assert (attrs.get("samesite") or "").lower() == "lax"
-        assert attrs.get("max-age") == str(SESSION_COOKIE_MAX_AGE)
-        assert attrs.get("path") == "/"
-
-
-@pytest.mark.parametrize("flag_value", ["0", "false", "False", "FALSE", "", "  0  "])
-def test_insecure_env_flag_falsy_values_keep_secure(client, monkeypatch, flag_value):
-    """플래그가 falsy 값("0"/"false"/빈 값)이면 꺼진 것 — Secure 유지 (배포 env 함정 방지)."""
-    monkeypatch.setenv(INSECURE_COOKIE_ENV, flag_value)
-    r = client.post(BOOTSTRAP_URL)
-    headers = session_cookie_headers(r)
-    assert headers
-    for h in headers:
-        attrs = _cookie_attrs(h)
-        assert "secure" in attrs
-
-
 def test_redeem_success_bodies_have_no_session_uuid(client):
     """자격증명은 redeem 응답 본문에도 없다 (기기 이동은 쿠키 rebind 로 이어진다)."""
     sid = known_session(turns=1)
@@ -384,3 +359,63 @@ def test_save_code_issue_with_unknown_cookie_creates_no_session_row(client):
     client.cookies.set(COOKIE_NAME, ghost)
     client.post(ISSUE_URL)
     assert not session_row_exists(ghost)
+
+
+# ------------- B7: strike 하드닝은 기존 호출부에서 도달 불가 (플레이어에게 500 없음)
+#
+# strike.register 는 "존재 확인된 세션만 받는다" 를 전제로 하고, 위반 시 즉시
+# 실패한다 (tests/safety/test_strike.py). 그 실패가 플레이어에게 보이면 500 이다.
+# 아래는 유일한 호출부(/turn 안전 트랙)에 대해 전제가 항상 만족됨을 행동으로 박제한다:
+# 신원 거부 3종은 strike 이전 단계에서 끝나고, 통과한 요청의 세션은 정의상 존재한다.
+# 이 테스트들이 깨지면 하드닝이 도달 가능해졌다는 뜻 = 버그 신호.
+
+def _harassment_input() -> str:
+    """디니리스트 첫 항목 — 안전 문구의 서식지는 rules/safety.yaml (하드코딩 금지)."""
+    return load_safety_rules().harassment_denylist[0]
+
+
+def _safety_event_count(sid: str) -> int:
+    with db_conn() as c:
+        return c.execute(
+            "SELECT count(*) FROM safety_events WHERE session_uuid = %s", (sid,)
+        ).fetchone()[0]
+
+
+def test_harassment_without_cookie_is_401_not_500(client):
+    """쿠키 없음 + 성희롱 입력 → 신원 게이트에서 끝. strike 는 호출되지 않는다."""
+    _assert_401_error(_turn(client, player_input=_harassment_input()))
+
+
+def test_harassment_with_non_uuid_cookie_is_401_not_500(client):
+    client.cookies.set(COOKIE_NAME, "not-a-uuid")
+    _assert_401_error(_turn(client, player_input=_harassment_input()))
+
+
+def test_harassment_with_unknown_session_is_401_and_logs_no_safety_event(client):
+    """미지의 세션은 strike 트랙에 도달조차 하지 않는다 — 401 + safety_events 무기록."""
+    ghost = str(uuid.uuid4())
+    client.cookies.set(COOKIE_NAME, ghost)
+    _assert_401_error(_turn(client, player_input=_harassment_input()))
+    assert _safety_event_count(ghost) == 0
+    assert not session_row_exists(ghost)
+
+
+def test_harassment_with_known_session_reaches_strike_without_error(client):
+    """전제 만족 경로 — 해석기를 통과한 세션은 존재하므로 strike 가 정상 동작(200)."""
+    sid = known_session()
+    client.cookies.set(COOKIE_NAME, sid)
+    r = _turn(client, player_input=_harassment_input())
+    assert r.status_code == 200
+    assert r.json()["kind"] == "warning"
+    assert _safety_event_count(sid) == 1
+
+
+def test_harassment_on_banned_session_short_circuits_before_strike(client):
+    """밴 세션은 ban 게이트에서 끝 — strike 재호출 없음(추가 safety_event 없음)."""
+    sid = _banned_session()
+    before = _safety_event_count(sid)
+    client.cookies.set(COOKIE_NAME, sid)
+    r = _turn(client, player_input=_harassment_input())
+    assert r.status_code == 200
+    assert r.json()["kind"] == "ban"
+    assert _safety_event_count(sid) == before

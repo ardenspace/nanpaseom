@@ -94,6 +94,18 @@ def cookie_value(header: str) -> str:
     return header.split(";", 1)[0].split("=", 1)[1].strip()
 
 
+def cookie_attrs(header: str) -> dict[str, str | None]:
+    """Set-Cookie 헤더 한 줄의 속성을 소문자 키 dict 로 (값 없는 속성은 None).
+
+    B6 속성 단언의 공유 파서 — Secure/HttpOnly 유무, SameSite/Max-Age/Path 값.
+    """
+    attrs: dict[str, str | None] = {}
+    for part in header.split(";")[1:]:
+        key, sep, val = part.strip().partition("=")
+        attrs[key.lower()] = val.strip() if sep else None
+    return attrs
+
+
 def session_cookie_value(response) -> str | None:
     """응답 Set-Cookie 헤더에서 session_uuid 값 추출 (본문에는 더 이상 없다)."""
     headers = session_cookie_headers(response)

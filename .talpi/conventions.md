@@ -69,6 +69,20 @@
 - `rules/identity.yaml` / `rules/save_code.yaml` / `rules/opening.yaml` —
   서버 발신 문구의 유일한 홈.
 
+이번 런에서 생긴 것:
+
+- `tests/api/conftest.py` — `cookie_attrs(header)` Set-Cookie 속성 파서
+  (기존 `test_identity_contracts.py` 사설 `_cookie_attrs` 승격). 쿠키
+  속성 단언은 이걸 쓴다.
+
+## Prior work this phase (Phase 1 — 위생 2건)
+
+- step 1: `tests/api/test_cookie_env_flag.py` (신규) — B6 허용목록 판정
+  매트릭스(ON 5 / OFF 21 / unset), 발급 표면(Set-Cookie)으로 관찰.
+  `tests/safety/test_strike.py` — B7 예외 pin + `python -O` 생존 pin.
+  `tests/api/test_identity_contracts.py` — B7 도달 불가(호출부 전제) pin.
+  `tests/api/conftest.py` — `cookie_attrs` 승격.
+
 이번 런에서 생길 것 (구현자가 만들면서 여기에 등록):
 
 - 세이브 코드 민팅 재시도 로직 — 발급과 회전이 공유해야 한다(현재
