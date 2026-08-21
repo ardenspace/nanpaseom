@@ -4,6 +4,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { postJson, type ApiResult } from "./api";
+import CopyCodeButton from "./CopyCodeButton";
 import { markPlayedHint, readPlayedHint } from "./playedHint";
 import type {
   BootstrapData,
@@ -22,14 +23,14 @@ import {
   REPLACE_CONFIRM_CANCEL,
   REPLACE_CONFIRM_OK,
   REPLACE_CONFIRM_TITLE,
+  REPLACE_RESCUE_CODE,
+  REPLACE_RESCUE_FAILED,
   RESUME_DIVIDER,
   RETURNING_NOTE,
   SAVE_CODE_BANNED_NOTE,
   SAVE_CODE_BUTTON,
   SAVE_CODE_CANCEL,
   SAVE_CODE_CLOSE,
-  SAVE_CODE_COPIED,
-  SAVE_CODE_COPY,
   SAVE_CODE_ENTRY,
   SAVE_CODE_ERROR_FALLBACK,
   SAVE_CODE_INPUT_PLACEHOLDER,
@@ -75,6 +76,10 @@ function readSaveCodeResult(r: ApiResult<SaveCodeIssueData>): SaveCodeResult {
   return { ok: false, error: data.message || GENERIC_ERROR };
 }
 
+/** 대체 확인 탈출구의 진행 상태. "pending" 은 요청 중 — 결과가 나오면 판독 결과로
+ *  대체된다. null 은 아직 탈출구를 누르지 않은 상태(다이얼로그를 닫으면 되돌아간다). */
+type RescueState = SaveCodeResult | "pending" | null;
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>("title");
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -88,7 +93,6 @@ export default function App() {
   // 세이브 코드 — 발급(채팅 오버레이) / 입력(타이틀) / 대체 확인 다이얼로그.
   const [saveCode, setSaveCode] = useState<string | null>(null);
   const [saveCodeOpen, setSaveCodeOpen] = useState(false);
-  const [saveCodeCopied, setSaveCodeCopied] = useState(false);
   // 회전은 같은 패널 안의 확인 단계 — 경고를 읽기 전에는 코드가 바뀌지 않는다.
   const [rotateConfirm, setRotateConfirm] = useState(false);
   const [rotateError, setRotateError] = useState<string | null>(null);
@@ -96,6 +100,8 @@ export default function App() {
   const [codeDraft, setCodeDraft] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // 대체 확인 다이얼로그 안의 탈출구 상태 (null = 아직 안 눌렀음).
+  const [rescue, setRescue] = useState<RescueState>(null);
   // 재방문 힌트는 타이틀 첫 렌더 시점에 한 번만 읽는다 (라벨 용도).
   const [playedHint] = useState(readPlayedHint);
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -207,8 +213,28 @@ export default function App() {
         setCodeError(data.message || SAVE_CODE_ERROR_FALLBACK);
       }
     }
-    setConfirmOpen(false);
+    closeConfirm();
     setBusy(false);
+  }
+
+  /** 대체 확인 다이얼로그의 탈출구 — 갈아타기 전에 *이 기기 세션*의 코드를 받아 둔다.
+   *  발급과 같은 endpoint(idempotent) 지만 결과는 이 다이얼로그 안에만 산다:
+   *  실패해도 확인 버튼은 그대로 살아 있다 — 돌아올 길을 못 만들었다는 사실만
+   *  정직하게 알리고, 계속할지 말지는 사용자가 정한다. */
+  async function rescueSaveCode() {
+    if (busy) return;
+    setBusy(true);
+    setRescue("pending");
+    setRescue(
+      readSaveCodeResult(await postJson<SaveCodeIssueData>("/save-code")),
+    );
+    setBusy(false);
+  }
+
+  /** 다이얼로그를 떠나며 탈출구 상태도 되돌린다 — 다음에 열릴 때는 처음부터. */
+  function closeConfirm() {
+    setConfirmOpen(false);
+    setRescue(null);
   }
 
   function submitCode(e: React.FormEvent) {
@@ -258,8 +284,8 @@ export default function App() {
       await postJson<SaveCodeIssueData>("/save-code/rotate"),
     );
     if (got.ok) {
+      // 복사 라벨은 CopyCodeButton 이 코드별로 소유 — key 가 바뀌며 저절로 되돌아간다.
       setSaveCode(got.code);
-      setSaveCodeCopied(false); // 복사한 것은 옛 코드 — 라벨을 되돌린다.
       setRotateConfirm(false);
     } else {
       // 패널이 채팅 로그를 덮고 있으니 실패는 확인 단계 안에서 알린다
@@ -269,19 +295,8 @@ export default function App() {
     setBusy(false);
   }
 
-  function copySaveCode() {
-    if (!saveCode) return;
-    // clipboard API 는 비보안 컨텍스트에 없을 수 있다 — 실패해도 무해
-    // (코드 텍스트는 user-select: all 로 직접 복사 가능).
-    void navigator.clipboard?.writeText(saveCode).then(
-      () => setSaveCodeCopied(true),
-      () => {},
-    );
-  }
-
   function closeSaveCode() {
     setSaveCodeOpen(false);
-    setSaveCodeCopied(false);
     setRotateConfirm(false);
     setRotateError(null);
   }
@@ -293,6 +308,9 @@ export default function App() {
     setDraft("");
     void sendTurn(text);
   }
+
+  // 탈출구의 *해소된* 결과만 — 요청 중("pending")은 아직 보여 줄 사실이 없다.
+  const rescued = rescue === "pending" ? null : rescue;
 
   if (screen === "banned") {
     return (
@@ -368,26 +386,56 @@ export default function App() {
         </div>
         {confirmOpen && (
           <div className="overlay" role="dialog" aria-modal="true">
-            <div
-              className="overlay__backdrop"
-              onClick={() => setConfirmOpen(false)}
-            />
+            <div className="overlay__backdrop" onClick={closeConfirm} />
             <div className="overlay__panel">
               <h2 className="overlay__title overlay__title--warning">
                 {REPLACE_CONFIRM_TITLE}
               </h2>
               <p className="overlay__body">{REPLACE_CONFIRM_BODY}</p>
+              {/* 탈출구 — 파괴적 확인 *앞*에 놓는다. 돌아올 길을 먼저 만들고
+                  나서 갈아타는 순서가 화면에도 그대로 보여야 한다. */}
+              <div className="replace-rescue">
+                {rescued?.ok && (
+                  <>
+                    <p className="savecode__code">{rescued.code}</p>
+                    <CopyCodeButton code={rescued.code} />
+                  </>
+                )}
+                {rescued && !rescued.ok && (
+                  <>
+                    {/* 원인(401 / 밴 / 503 / 네트워크)이 무엇이든 사용자에게 남는
+                        사실은 하나 — 코드를 못 받았다. 서버 문구는 그 아래 부연. */}
+                    <p className="overlay__body overlay__body--warning">
+                      {REPLACE_RESCUE_FAILED}
+                    </p>
+                    <p className="overlay__error">{rescued.error}</p>
+                  </>
+                )}
+                {!rescued?.ok && (
+                  // 실패 뒤에도 남는다 — 네트워크가 돌아오면 다시 시도할 수 있다.
+                  <button
+                    className="btn btn--ghost"
+                    onClick={() => void rescueSaveCode()}
+                    disabled={busy}
+                  >
+                    {rescue === "pending" ? CONNECTING : REPLACE_RESCUE_CODE}
+                  </button>
+                )}
+              </div>
               <div className="overlay__actions">
                 <button
                   className="btn btn--primary"
                   onClick={() => void redeemCode()}
                   disabled={busy}
                 >
-                  {busy ? CONNECTING : REPLACE_CONFIRM_OK}
+                  {/* 탈출구 요청 중에는 저쪽이 연결 중 — 확인 라벨은 그대로 둔다. */}
+                  {busy && rescue !== "pending"
+                    ? CONNECTING
+                    : REPLACE_CONFIRM_OK}
                 </button>
                 <button
                   className="btn btn--ghost"
-                  onClick={() => setConfirmOpen(false)}
+                  onClick={closeConfirm}
                   disabled={busy}
                 >
                   {REPLACE_CONFIRM_CANCEL}
@@ -534,9 +582,9 @@ export default function App() {
               <>
                 <p className="overlay__body">{SAVE_CODE_ISSUED_NOTE}</p>
                 <div className="overlay__actions">
-                  <button className="btn btn--primary" onClick={copySaveCode}>
-                    {saveCodeCopied ? SAVE_CODE_COPIED : SAVE_CODE_COPY}
-                  </button>
+                  {/* key — 회전으로 코드가 바뀌면 복사 완료 라벨은 옛 코드의
+                      사실이므로 함께 리셋된다. */}
+                  <CopyCodeButton key={saveCode} code={saveCode} />
                   <button
                     className="btn btn--ghost"
                     onClick={() => setRotateConfirm(true)}

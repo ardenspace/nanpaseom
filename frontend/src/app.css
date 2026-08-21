@@ -437,6 +437,18 @@ button:disabled {
   user-select: all;
 }
 
+/* 대체 확인 다이얼로그의 탈출구 — 확인/취소로 가기 전에 들르는 곁길이라
+   가는 구분선으로 본문과 갈라 둔다 (액션 행과는 다른 층위). */
+.replace-rescue {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: var(--border-hairline) solid var(--color-abyss-300);
+  animation: rise-in var(--dur-rise-fast) ease-out;
+}
+
 /* ---------- 채팅 헤더 세이브 코드 버튼 (은은한 어포던스) ---------- */
 
 .chat__save-btn {
