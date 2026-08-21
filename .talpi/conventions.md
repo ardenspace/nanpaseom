@@ -81,7 +81,11 @@
   공유 단언. Secure 유무는 호출부가 각자 단언한다(발급 표면 = 항상 있다,
   env 매트릭스 = 있냐 없냐가 관찰 대상).
 
-## Prior work this phase (Phase 6 — Acceptance fixes)
+## Prior work this phase (Phase 7 — Acceptance fixes 2차)
+
+(아직 없음 — 첫 스텝 진행 중.)
+
+## Prior work — Phase 6 (완료, 참고용)
 
 - step 1: `tests/api/test_identity_contracts.py` 의 사설
   `_set_save_code` 제거 → conftest 의 `set_save_code` 사용(호출부 4곳).
