@@ -49,3 +49,6 @@
 - [2026-08-20T06:14:29Z] final report sent, awaiting acceptance
 - [2026-08-20T07:20:51Z] knowledge distilled
 - [2026-08-20T07:20:51Z] run done
+- [2026-08-20T18:36:01Z] run started over done run
+- [2026-08-21T02:51:39Z] spec approved
+- [2026-08-21T04:08:18Z] plan approved, 5 phases
