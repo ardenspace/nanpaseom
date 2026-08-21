@@ -155,15 +155,22 @@ def session_cookie_value(response) -> str | None:
 def client(monkeypatch):
     """migration + truncate 격리, llm_call/summarize_call stub 된 TestClient.
 
+    redeem 시도 제한 카운터(app.api.rate_limit)는 DB 가 아니라 프로세스 메모리에
+    살고 TestClient 는 전부 같은 직결 주소(``testclient``)로 보인다 — truncate 로는
+    안 지워지므로 여기서 함께 비운다. 안 하면 redeem 을 쓰는 테스트들이 서로의
+    시도를 물려받아 429 로 새기 시작한다 (DB 격리와 같은 결의 테스트 격리).
+
     TestClient 는 http://testserver — Secure 쿠키는 http 위에서 재전송되지 않아
     rebind→bootstrap 류 흐름이 깨진다. 로컬 dev 와 같은 예외 경로(B6 env 플래그)로
     Secure 만 생략한다. Secure 자체를 단언하는 B6 계약 테스트는 각자
     monkeypatch.delenv 로 이 플래그를 명시적으로 끈다 (같은 monkeypatch 라 test
     본문의 delenv 가 이긴다).
     """
+    from app.api import rate_limit
     from app.api.session_cookie import INSECURE_COOKIE_ENV
 
     monkeypatch.setenv(INSECURE_COOKIE_ENV, "1")
+    rate_limit.reset()
 
     c = psycopg.connect(DATABASE_URL, autocommit=True)
     db.apply_migrations(c)

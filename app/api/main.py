@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
+from app.api import rate_limit
 from app.api.identity import load_identity_rules, resolve_session
 from app.api.session_cookie import set_session_cookie
 from app.models import SessionState, TurnResponse
@@ -240,8 +241,24 @@ def _redeem_not_found() -> JSONResponse:
 
 
 @app.post("/save-code/redeem")
-def redeem_save_code(req: RedeemRequest) -> JSONResponse:
-    """B3 redeem — 코드로 세션 복원. 쿠키 재바인딩은 성공(new/resumed) 응답에만."""
+def redeem_save_code(req: RedeemRequest, request: Request) -> JSONResponse:
+    """B3 redeem — 코드로 세션 복원. 쿠키 재바인딩은 성공(new/resumed) 응답에만.
+
+    제한 게이트가 가장 앞: 엔드포인트에 들어온 **모든 시도**(형식 위반·404·성공)가
+    직결 IP 예산에서 차감되고, 성공은 예산을 되돌리지 않는다 — 유효 코드 1개를 쥔
+    공격자가 성공/추측을 번갈아 무한히 두드리지 못하게. 수치/문구는 rules YAML.
+    """
+    rules = load_save_code_rules()
+    if not rate_limit.allow(
+        rate_limit.client_ip(request),
+        limit=rules.redeem_rate_limit_attempts,
+        window_seconds=rules.redeem_rate_limit_window_seconds,
+    ):
+        # 차단 응답은 아무것도 재바인딩하지 않는다 (Set-Cookie 없음).
+        return JSONResponse(
+            status_code=429,
+            content={"status": "error", "message": rules.redeem_rate_limited_message},
+        )
     if not SAVE_CODE_RE.fullmatch(req.code):
         return _redeem_not_found()  # 형식 위반 = 미지의 코드와 동일 404 (DB 조회 불필요)
     with db.connect() as conn:

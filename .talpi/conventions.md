@@ -122,6 +122,24 @@
   서버 문구 없음, 401 은 identity.yaml 재사용).
   `app/api/main.py` 296줄 — 300줄 트리거 미만이라 단일 파일 유지.
   340 passed (기존 329 + rotate 11).
+- step 4: redeem 시도 제한. **신규 공유 유틸**: `app/api/rate_limit.py`
+  — `allow(key, *, limit, window_seconds)`, `client_ip(request)`
+  (`request.client.host` 만 — XFF 절대 안 봄, client 없으면 `"-"` 공유
+  버킷), `reset()`(테스트 경계 초기화 — 공유 `client` fixture 에 배선됨),
+  **`now()` 시간 seam**(`time.monotonic` 래퍼 — 테스트는
+  `monkeypatch.setattr(rate_limit, "now", fake_clock)` 로 시계를 민다.
+  엔드포인트 시계도 같이 움직여 sleep 없이 윈도우 만료를 관찰).
+  허용된 시도만 기록(차단이 윈도우를 연장하지 않음 → 영구 잠금 없음),
+  청소는 윈도우당 1회 amortized sweep.
+  수치: **10회 / 3600초** (rules/save_code.yaml). 사람 오타는 2–3회라
+  3배 여유, 공격자는 하루 240 추측 → 유효 코드 1000개 가정에도 단일 IP
+  기대 ~58일. 성공이 예산을 환급하지 않으므로 유효 코드 보유가 우회
+  수단이 되지 않는다.
+  `tests/api/test_rate_limit_cleanup.py` 신규(미pin 이었던 만료 정리 +
+  윈도우 복구를 시간 seam 으로 pin). 352 passed.
+  **프론트 인계**: redeem 오류 경로가 이미 `data.message` 를 그대로
+  띄우므로 429 문구는 서버(rules)가 소유한다 — tone 에 중복 상수를
+  만들지 말 것(같은 사실 한 홈).
 
 ## Prior work — Phase 1 (완료, 참고용)
 
@@ -168,8 +186,13 @@
   `app/safety`, `app/turn`, `migrations/NNN_*.sql` 시퀀셜. 이번 런은
   스키마 변경 없음(`sessions.save_code` 단일 컬럼 유지) — 새 migration
   이 필요하다고 느껴지면 그건 spec 을 벗어난 신호다.
-- `app/api/main.py` 는 300줄 리뷰 트리거 대상 — rotate 추가로 더 커지면
-  라우터 단위 분리를 검토하고, 유지한다면 이유를 여기 한 줄로 기록.
+- `app/api/main.py` **313줄 — 300줄 리뷰 완료, 단일 파일 유지 결정**:
+  자연스러운 절단선은 save-code 라우터인데 `redeem` 이 `bootstrap` 과
+  `_bootstrap_response` / `_resumed_payload` / `_new_payload` /
+  `BOOTSTRAP_NPC_ID` 를 공유한다 → 분리하면 세 번째 공유 모듈
+  (`session_payload` 류)이 강제된다. 이건 리미터 추가와 직교하는 구조
+  변경이라 자체 스텝을 가질 자격이 있고, 레이트리밋 커밋에 얹혀 가면 안
+  된다. (다음 런 후보.)
 - `frontend/src/App.tsx`(534줄): 이번 런에서 applyTurn+sendTurn 훅 추출을
   **실행한다**(Phase 2). 추출 후 남는 줄 수와 판단을 여기 갱신할 것.
 - 프론트 테스트 파일 배치·명명은 위임 — 단 하드코딩 게이트 스캔 대상

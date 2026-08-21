@@ -85,8 +85,16 @@ def mint_save_code(conn, session_uuid: str, *, avoid: str | None = None) -> str:
 
 
 class SaveCodeRules(BaseModel):
+    """rules/save_code.yaml — redeem 표면의 문구 + 시도 제한 수치 단일 홈.
+
+    제한 수치가 코드가 아닌 YAML 에 사는 이유: 튜닝은 코드 수정이 아니라 YAML
+    수정 (CLAUDE.md). 판정 로직은 app/api/rate_limit.py.
+    """
     model_config = ConfigDict(extra="forbid")
     redeem_not_found_message: str
+    redeem_rate_limit_attempts: int
+    redeem_rate_limit_window_seconds: int
+    redeem_rate_limited_message: str
 
 
 @lru_cache(maxsize=1)
