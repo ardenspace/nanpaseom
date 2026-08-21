@@ -11,8 +11,8 @@
 // 규약: 테스트 이름/주석 밖 리터럴은 영어. 사용자 노출 문구 단언은 tone.ts import 로만
 // (scripts/check_no_hardcoded_dialogue.py 가 이 파일도 스캔한다).
 //
-// 서버는 stub fetch — 경로별 응답 큐. 호출 시퀀스 단언이 곧 "확인 전에는 아무 요청도
-// 안 나간다" / "탈출구 실패 뒤에도 redeem 이 실제로 나간다" 의 pin 이다.
+// 서버는 stub fetch (공유 헬퍼 src/test/stubServer) — 경로별 응답 큐. 호출 시퀀스 단언이
+// 곧 확인 전에는 아무 요청도 안 나간다 / 탈출구 실패 뒤에도 redeem 이 실제로 나간다 의 pin 이다.
 //
 // 미pin: 서버측 계약(B2 /save-code, B3 /save-code/redeem)은 python 테스트 소유.
 // 여기서는 화면 어포던스와 클라이언트 가드만 본다.
@@ -21,6 +21,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import { markPlayedHint } from "./playedHint";
+import { json, stubServer, type StubReply } from "./test/stubServer";
 import {
   REPLACE_CONFIRM_CANCEL,
   REPLACE_CONFIRM_OK,
@@ -42,30 +43,8 @@ const OPENING = "npc opening after redeem (stub)";
 const BAN_REASON = "ban reason from save code (stub)";
 const SERVER_ERROR_MESSAGE = "server side error message (stub)";
 
-/** 큐 항목: JSON 응답이거나 네트워크 단절(fetch reject). */
-type Reply = { status: number; body: unknown } | "unreachable";
-
-const json = (status: number, body: unknown): Reply => ({ status, body });
-
-/** 경로별 응답 큐 stub. 큐에 없는 경로/여분 호출은 던져서 조용히 통과하지 못하게 하고,
- *  실제 호출 순서는 calls 배열로 돌려준다 (시퀀스 단언용). */
-function stubServer(queues: Record<string, Reply[]>) {
-  const calls: string[] = [];
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const path = String(input);
-    calls.push(path);
-    const next = queues[path]?.shift();
-    if (next === undefined) throw new Error(`unstubbed request: ${path}`);
-    if (next === "unreachable") throw new Error("network down (stub)");
-    return {
-      ok: next.status >= 200 && next.status < 300,
-      status: next.status,
-      json: async () => next.body,
-    } as Response;
-  });
-  vi.stubGlobal("fetch", fetchMock);
-  return calls;
-}
+// 이 파일은 공유 stubServer 의 기본 정책을 쓴다 — 큐에 없는 경로도, 큐를 넘어선
+// 여분 호출도 던진다 (조용히 통과하지 못하게).
 
 /** jsdom 에는 실제 클립보드가 없다 — 성공/실패를 시험이 정한다. */
 function stubClipboard(writeText: (text: string) => Promise<void>) {
@@ -197,7 +176,7 @@ describe("replace confirmation escape hatch", () => {
 
 /** 탈출구가 코드를 못 주는 경우의 공통 계약: 코드 대신 정직한 실패 문구가 뜨고,
  *  갈아타기(redeem)는 그대로 계속 가능하다 — 탈출구 실패가 redeem 을 막지 않는다. */
-async function rescueFailureKeepsRedeemUsable(saveCodeReply: Reply) {
+async function rescueFailureKeepsRedeemUsable(saveCodeReply: StubReply) {
   const calls = stubServer({
     [SAVE_CODE]: [saveCodeReply],
     [REDEEM]: [

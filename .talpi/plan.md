@@ -105,7 +105,7 @@ Contracts:
 
 - [x] `tests/api/test_identity_contracts.py` 의 사설 `_set_save_code` 제거 —
       Phase 2가 conftest로 승격한 `set_save_code` 를 쓴다(쌍둥이 누락분).
-- [ ] App 컴포넌트 테스트 4개의 fetch 스텁 통합 — `stubServer`/`Reply`/
+- [x] App 컴포넌트 테스트 4개의 fetch 스텁 통합 — `stubServer`/`Reply`/
       `json`/`jsonOk` 가 파일마다 제각각. 공유 테스트 헬퍼로 승격하고
       네 파일이 모두 그걸 쓴다(단언 내용은 불변).
 - [ ] 다이얼로그 백드롭 클릭이 in-flight 중 `busy` 를 남기는 문제 수정 +

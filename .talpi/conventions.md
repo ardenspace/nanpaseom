@@ -91,6 +91,22 @@
   단언하는 상위집합이라, 이 모듈의 코드 4개도 이제 형식 검증을 거친다
   (전부 통과 — 앞으로 오타는 조용히 쓰이지 않고 시끄럽게 실패).
   364 passed (수 불변).
+- step 2: 프론트 fetch 스텁 통합. **신규 공유 유틸**:
+  `frontend/src/test/stubServer.ts` — `stubServer(routes, options?)
+  → string[]`(호출 경로 기록), `json(status, body)` / `jsonOk(body)`,
+  `sticky(replies)`(마지막 응답이 계속 답함 — 언마운트 후 재진입 흉내),
+  타입 `StubReply`("unreachable" 포함) / `StubRoute` / `StubRouteSpec`.
+  라우트는 상수/큐/함수(RequestInit 접근) 3형태, 미지의 경로는 throw,
+  큐 소진 정책은 `options.whenExhausted`(기본 throw).
+  setup.ts 와 달리 자동 로드가 아니라 각 테스트가 import 한다.
+  네 파일이 필요로 한 능력의 합집합이 설계를 정했다: turn401 은 큐 +
+  호출 시퀀스 기록 + 소진 시 401 응답(throw 가 아니라 — 클라이언트
+  처리를 계속 관측해야 하므로), replaceConfirm 은 같은 큐에 반대 소진
+  정책, saveCode 는 상수 라우트, saveCodeNudge 는 sticky + 요청 본문을
+  읽는 함수 라우트.
+  단언은 전부 불변(호출 시퀀스 pin 은 바이트 동일). 구현자가 변이
+  검사로 시퀀스 pin 이 공허하지 않음을 확인(재시도 응답 제거 → 정확히
+  그 지점에서 실패). 45 passed / 6 files (수 불변).
 
 ## Prior work — Phase 5 (완료, 참고용)
 

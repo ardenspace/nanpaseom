@@ -5,12 +5,14 @@
 // 규약: 테스트 이름/주석 밖 리터럴은 영어. 사용자 노출 문구 단언은 tone.ts import 로만
 // (scripts/check_no_hardcoded_dialogue.py 가 이 파일도 스캔한다).
 //
-// 서버는 stub fetch — 경로별 응답 큐를 미리 넣고, 실제 호출 시퀀스를 정확히 단언한다.
+// 서버는 stub fetch (공유 헬퍼 src/test/stubServer) — 경로별 응답 큐를 미리 넣고,
+// 실제 호출 시퀀스를 정확히 단언한다.
 // 시퀀스 단언이 곧 무한 루프 금지의 pin 이다 (재bootstrap 은 정확히 1회).
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
+import { json, stubServer, type StubReply } from "./test/stubServer";
 import {
   BANNED_TITLE,
   FREE_INPUT_PLACEHOLDER,
@@ -34,36 +36,18 @@ const PLAYER_INPUT = "player input (stub)";
 const SERVER_ERROR_MESSAGE = "server side error message (stub)";
 const BAN_REASON = "ban reason from bootstrap (stub)";
 
-/** 큐 항목: JSON 응답이거나 네트워크 단절(fetch reject). */
-type Reply = { status: number; body: unknown } | "unreachable";
-
-const json = (status: number, body: unknown): Reply => ({ status, body });
-
 /** 큐가 비었을 때 돌려주는 응답. 클라이언트가 계약보다 더 호출하면 이게 나가고,
  *  호출 시퀀스 단언이 어긋나 테스트가 깨진다 (조용한 통과 방지). */
-const OVERFLOW: Reply = {
+const OVERFLOW: StubReply = {
   status: 401,
   body: { status: "error", message: "unexpected extra call (stub)" },
 };
 
-function stubServer(queues: Record<string, Reply[]>) {
-  const calls: string[] = [];
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const path = String(input);
-    calls.push(path);
-    const queue = queues[path];
-    if (!queue) throw new Error(`unstubbed request path: ${path}`);
-    const next = queue.shift() ?? OVERFLOW;
-    if (next === "unreachable") throw new Error("network down (stub)");
-    return {
-      ok: next.status >= 200 && next.status < 300,
-      status: next.status,
-      json: async () => next.body,
-    } as Response;
-  });
-  vi.stubGlobal("fetch", fetchMock);
-  return calls;
-}
+/** 이 파일의 stub 서버 — 여분 호출은 던지지 않고 401 로 답한다. 던져 버리면
+ *  네트워크 단절과 구분이 안 되므로, 계약보다 더 부른 클라이언트가 그 응답을
+ *  어떻게 다루는지까지 시퀀스 단언으로 잰다. */
+const stubTurnServer = (queues: Record<string, StubReply[]>) =>
+  stubServer(queues, { whenExhausted: OVERFLOW });
 
 const openingBootstrap = json(200, {
   status: "new",
@@ -92,7 +76,7 @@ describe("turn 401 auto recovery", () => {
   });
 
   it("re-bootstraps once and retries the pending turn when the session resumes", async () => {
-    const calls = stubServer({
+    const calls = stubTurnServer({
       [BOOTSTRAP]: [
         openingBootstrap,
         json(200, {
@@ -121,7 +105,7 @@ describe("turn 401 auto recovery", () => {
   });
 
   it("enters the new session and does not resend the pending input when the server has none", async () => {
-    const calls = stubServer({
+    const calls = stubTurnServer({
       [BOOTSTRAP]: [
         openingBootstrap,
         json(200, {
@@ -145,7 +129,7 @@ describe("turn 401 auto recovery", () => {
   });
 
   it("stops after one retry when the retried turn is rejected again", async () => {
-    const calls = stubServer({
+    const calls = stubTurnServer({
       [BOOTSTRAP]: [
         openingBootstrap,
         json(200, { status: "resumed", npc_id: "surigong", choices: [] }),
@@ -168,7 +152,7 @@ describe("turn 401 auto recovery", () => {
   });
 
   it("reports an unreachable server when the recovery bootstrap cannot be reached", async () => {
-    const calls = stubServer({
+    const calls = stubTurnServer({
       [BOOTSTRAP]: [openingBootstrap, "unreachable"],
       [TURN]: [unauthorizedTurn],
     });
@@ -180,7 +164,7 @@ describe("turn 401 auto recovery", () => {
   });
 
   it("switches to the banned screen when the recovery bootstrap reports a ban", async () => {
-    const calls = stubServer({
+    const calls = stubTurnServer({
       [BOOTSTRAP]: [
         openingBootstrap,
         json(200, { status: "banned", ban_reason: BAN_REASON }),
@@ -204,7 +188,7 @@ describe("turn 401 auto recovery", () => {
       (_, i) =>
         json(200, { kind: "npc", reply: `${LATER_REPLY}/${i}`, choices: [] }),
     );
-    const calls = stubServer({
+    const calls = stubTurnServer({
       [BOOTSTRAP]: [
         // 코드 없는 새 세션으로 진입 — 넛지가 열려 있는 상태에서 출발한다.
         json(200, {
@@ -251,7 +235,7 @@ describe("turn 401 auto recovery", () => {
   });
 
   it("shows the server message when the recovery bootstrap itself errors", async () => {
-    const calls = stubServer({
+    const calls = stubTurnServer({
       [BOOTSTRAP]: [
         openingBootstrap,
         json(503, { status: "error", message: SERVER_ERROR_MESSAGE }),

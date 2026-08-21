@@ -4,14 +4,15 @@
 // 규약: 테스트 이름/주석 밖 리터럴은 영어. 사용자 노출 문구 단언은 tone.ts import 로만
 // (scripts/check_no_hardcoded_dialogue.py 가 이 파일도 스캔한다).
 //
-// 서버는 stub fetch — 이 파일은 화면 어포던스만 pin 한다. 회전의 서버 계약은
-// tests/api/test_save_code_rotate.py 소유.
+// 서버는 stub fetch (공유 헬퍼 src/test/stubServer) — 이 파일은 화면 어포던스만
+// pin 한다. 회전의 서버 계약은 tests/api/test_save_code_rotate.py 소유.
 //
 // 미pin: 다른 기기/탭에 떠 있는 옛 코드의 스테일 표시 — 계약이 명시적으로 감수한다.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
+import { jsonOk, stubServer } from "./test/stubServer";
 import {
   RETIRED_IMMUTABLE_CODE_CLAIM,
   SAVE_CODE_BUTTON,
@@ -24,37 +25,20 @@ import {
 const ISSUED_CODE = "MAST-2345";
 const ROTATED_CODE = "REEF-6789";
 
-function jsonOk(body: unknown): Response {
-  return {
-    ok: true,
-    status: 200,
-    json: async () => body,
-  } as Response;
-}
-
-/** 최소 stub 서버 — bootstrap(new) / 발급 / 회전만 안다. 그 외 경로는 즉시 실패시켜
- *  테스트가 모르는 요청을 조용히 통과시키지 않는다. */
-function stubServer() {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const path = String(input);
-    if (path === "/session/bootstrap") {
-      return jsonOk({
-        status: "new",
-        npc_id: "surigong",
-        reply: "npc opening (stub)",
-        choices: [],
-      });
-    }
-    if (path === "/save-code") {
-      return jsonOk({ status: "ok", save_code: ISSUED_CODE });
-    }
-    if (path === "/save-code/rotate") {
-      return jsonOk({ status: "ok", save_code: ROTATED_CODE });
-    }
-    throw new Error(`unstubbed request path: ${path}`);
+/** 최소 stub 서버 — bootstrap(new) / 발급 / 회전만 안다. 그 외 경로는 공유 헬퍼가
+ *  즉시 실패시켜 테스트가 모르는 요청을 조용히 통과시키지 않는다.
+ *  세 경로 모두 몇 번을 불러도 같은 응답 — 이 파일은 호출 횟수를 재지 않는다. */
+function stubSaveCodeServer() {
+  stubServer({
+    "/session/bootstrap": jsonOk({
+      status: "new",
+      npc_id: "surigong",
+      reply: "npc opening (stub)",
+      choices: [],
+    }),
+    "/save-code": jsonOk({ status: "ok", save_code: ISSUED_CODE }),
+    "/save-code/rotate": jsonOk({ status: "ok", save_code: ROTATED_CODE }),
   });
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
 }
 
 /** 타이틀 → 채팅 → 세이브 코드 패널까지 연다 (발급된 코드가 화면에 뜬 상태). */
@@ -67,7 +51,7 @@ async function openSaveCodePanel() {
 
 describe("save code panel rotation affordance", () => {
   beforeEach(() => {
-    stubServer();
+    stubSaveCodeServer();
   });
   afterEach(() => {
     vi.unstubAllGlobals();

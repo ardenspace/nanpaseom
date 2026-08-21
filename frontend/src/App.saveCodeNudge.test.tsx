@@ -17,6 +17,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
+import { jsonOk, sticky, stubServer } from "./test/stubServer";
 import {
   CONTINUE_BUTTON,
   FREE_INPUT_PLACEHOLDER,
@@ -62,23 +63,14 @@ const resumedEntry = (hasSaveCode: boolean): Json => ({
   has_save_code: hasSaveCode,
 });
 
-function jsonOk(body: unknown): Response {
-  return { ok: true, status: 200, json: async () => body } as Response;
-}
-
-/** stub 서버. bootstrap 은 주어진 진입 응답을 순서대로 소비하고 마지막 것이
- *  이후에도 계속 나온다 (한 테스트 안에서 재진입을 흉내내기 위함).
- *  /turn 은 보낸 입력을 그대로 되울려 턴마다 고유한 텍스트를 만든다. */
-function stubServer(entries: Json[]) {
-  const calls: string[] = [];
-  const queue = [...entries];
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const path = String(input);
-    calls.push(path);
-    if (path === BOOTSTRAP) {
-      return jsonOk(queue.length > 1 ? queue.shift() : queue[0]);
-    }
-    if (path === TURN) {
+/** stub 서버 (공유 헬퍼 위에 이 파일의 배선만 얹은 것). bootstrap 은 주어진 진입
+ *  응답을 순서대로 소비하고 마지막 것이 이후에도 계속 나온다 (한 테스트 안에서
+ *  재진입을 흉내내기 위함). /turn 은 보낸 입력을 그대로 되울려 턴마다 고유한
+ *  텍스트를 만든다. 그 외 경로는 공유 헬퍼가 던진다. */
+function stubNudgeServer(entries: Json[]): string[] {
+  return stubServer({
+    [BOOTSTRAP]: sticky(entries.map(jsonOk)),
+    [TURN]: (init?: RequestInit) => {
       const sent = JSON.parse(String(init?.body ?? "{}")) as {
         player_input?: string;
       };
@@ -87,13 +79,10 @@ function stubServer(entries: Json[]) {
         reply: `${NPC_REPLY} ${sent.player_input ?? ""}`,
         choices: [],
       });
-    }
-    if (path === ISSUE) return jsonOk({ status: "ok", save_code: ISSUED_CODE });
-    if (path === ROTATE) return jsonOk({ status: "ok", save_code: ROTATED_CODE });
-    throw new Error(`unstubbed request path: ${path}`);
+    },
+    [ISSUE]: jsonOk({ status: "ok", save_code: ISSUED_CODE }),
+    [ROTATE]: jsonOk({ status: "ok", save_code: ROTATED_CODE }),
   });
-  vi.stubGlobal("fetch", fetchMock);
-  return calls;
 }
 
 /** 타이틀의 진입 버튼 — 재방문 힌트가 붙으면 라벨이 바뀌므로 둘 다 받는다. */
@@ -136,7 +125,7 @@ describe("save code nudge exposure", () => {
   });
 
   it("stays hidden before the threshold turn", async () => {
-    stubServer([newEntry(false)]);
+    stubNudgeServer([newEntry(false)]);
     render(<App />);
     await enterChat();
 
@@ -146,7 +135,7 @@ describe("save code nudge exposure", () => {
   });
 
   it("appears at the threshold turn with a dismiss control", async () => {
-    stubServer([newEntry(false)]);
+    stubNudgeServer([newEntry(false)]);
     render(<App />);
     await enterChat();
 
@@ -161,7 +150,7 @@ describe("save code nudge exposure", () => {
   });
 
   it("never appears when the entry response reports an existing save code", async () => {
-    stubServer([resumedEntry(true)]);
+    stubNudgeServer([resumedEntry(true)]);
     render(<App />);
     await enterChat();
 
@@ -179,7 +168,7 @@ describe("save code nudge after in-session code changes", () => {
   it("stays hidden after issuing a code mid-session, without re-entering", async () => {
     // 진입 응답은 코드 없음이었지만 발급이 성공했다 — 발급 응답이 코드를 돌려주므로
     // 클라이언트는 추가 왕복 없이 즉시 참으로 간주한다.
-    const calls = stubServer([newEntry(false)]);
+    const calls = stubNudgeServer([newEntry(false)]);
     render(<App />);
     await enterChat();
 
@@ -192,7 +181,7 @@ describe("save code nudge after in-session code changes", () => {
 
   it("stays hidden after rotating a code mid-session, without re-entering", async () => {
     // 회전은 코드를 갈아끼울 뿐 — 보유 상태를 되돌리지 않는다.
-    const calls = stubServer([newEntry(false)]);
+    const calls = stubNudgeServer([newEntry(false)]);
     render(<App />);
     await enterChat();
 
@@ -230,7 +219,7 @@ describe("save code nudge dismissal", () => {
   }
 
   it("does not come back later in the same session", async () => {
-    stubServer([newEntry(false)]);
+    stubNudgeServer([newEntry(false)]);
     render(<App />);
     await enterChat();
 
@@ -241,7 +230,7 @@ describe("save code nudge dismissal", () => {
   });
 
   it("stays dismissed when the same device resumes the session later", async () => {
-    stubServer([newEntry(false), resumedEntry(false)]);
+    stubNudgeServer([newEntry(false), resumedEntry(false)]);
     const first = render(<App />);
     await enterChat();
     await reachAndDismiss("dismiss");
@@ -256,7 +245,7 @@ describe("save code nudge dismissal", () => {
 
   it("shows again when the same device enters a code-less new session", async () => {
     // 쿠키가 사라져 새 세션이 된 플레이어 — 코드가 없는데 넛지를 영영 못 보면 안 된다.
-    stubServer([newEntry(false), newEntry(false)]);
+    stubNudgeServer([newEntry(false), newEntry(false)]);
     const first = render(<App />);
     await enterChat();
     await reachAndDismiss("dismiss");
