@@ -93,3 +93,5 @@
 - [2026-08-21T12:14:39Z] smoke walked (at: 6013e72)
 - [2026-08-21T12:14:39Z] run review (through 6013e72): 1 findings (1 fixed, 0 noted)
 - [2026-08-21T12:14:39Z] final report sent, awaiting acceptance
+- [2026-08-21T12:32:28Z] knowledge distilled
+- [2026-08-21T12:32:28Z] run done
