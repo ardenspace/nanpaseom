@@ -95,3 +95,24 @@ Contracts:
 - [x] 전 게이트 재실행(pytest / check_yaml / 하드코딩 grep / `bun run
       build` / vitest) + dist 재빌드 후 스모크 수행, 결과를
       `.talpi/manual-check.md` 에 기록.
+
+## Phase 6: Acceptance fixes
+
+수락 때 사람이 요청한 런 리뷰 NOTE 4건 정리 — 사용자가 보는 동작 중
+하나(백드롭 클릭)가 실제로 고쳐지고, 나머지는 중복/낡은 기록 정리.
+
+Contracts:
+
+- [ ] `tests/api/test_identity_contracts.py` 의 사설 `_set_save_code` 제거 —
+      Phase 2가 conftest로 승격한 `set_save_code` 를 쓴다(쌍둥이 누락분).
+- [ ] App 컴포넌트 테스트 4개의 fetch 스텁 통합 — `stubServer`/`Reply`/
+      `json`/`jsonOk` 가 파일마다 제각각. 공유 테스트 헬퍼로 승격하고
+      네 파일이 모두 그걸 쓴다(단언 내용은 불변).
+- [ ] 다이얼로그 백드롭 클릭이 in-flight 중 `busy` 를 남기는 문제 수정 +
+      회귀 pin — 탈출구 요청 중 백드롭을 누르면 다이얼로그는 닫히는데
+      타이틀 버튼이 죽어 있고 늦게 온 결과가 다음에 열 때 되살아난다
+      (Phase 3의 "취소/백드롭/닫기는 탈출구 상태를 리셋" 위반).
+- [ ] `docs/mechanic-spec.md` 2-Strike 절의 낡은 노트 정리 —
+      "save-code 무효화는 Sub-2b+ 전까지 N/A" 는 세이브 코드가 나온
+      지금 거짓. 밴 시 무효화가 컬럼을 비우는 게 아니라 redeem 거부로
+      충족된다는 현재 사실에 맞춘다(상세는 ADR 위임).

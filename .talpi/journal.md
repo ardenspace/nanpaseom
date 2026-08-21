@@ -75,3 +75,4 @@
 - [2026-08-21T10:14:47Z] smoke reused from phase 5 (doc-only diff since afd8f4e)
 - [2026-08-21T10:22:20Z] run review (through 63162d9): 5 findings (0 fixed, 4 noted, 1 escalated)
 - [2026-08-21T10:23:03Z] final report sent, awaiting acceptance
+- [2026-08-21T10:30:07Z] acceptance declined: 런 리뷰 NOTE 4건 전부 수정 요청 (테스트 헬퍼 중복 2건, 백드롭 busy 잔류, mechanic-spec 낡은 노트)

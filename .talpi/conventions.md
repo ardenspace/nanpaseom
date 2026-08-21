@@ -81,7 +81,11 @@
   공유 단언. Secure 유무는 호출부가 각자 단언한다(발급 표면 = 항상 있다,
   env 매트릭스 = 있냐 없냐가 관찰 대상).
 
-## Prior work this phase (Phase 5 — 기록과 확증)
+## Prior work this phase (Phase 6 — Acceptance fixes)
+
+(아직 없음 — 첫 스텝 진행 중.)
+
+## Prior work — Phase 5 (완료, 참고용)
 
 - step 1: `docs/adr/0038-save-code-rotation.md` — 회전 8개 결정(단일
   활성 코드/무유예/소각 없음/오타와 구분 안 함/축출 아님/발급과 분리/
