@@ -112,11 +112,16 @@ NPC 말투가 아닌지, 배너 위치가 입력 바 바로 위인지 같은 것
 확인되지 않는다.
 
 - 일시: 2026-08-21
-- 커밋: `afd8f4e`
-- 실행자: 자동 (phase 5 step 5 검증)
-- 구성: `docker compose` db(5432) + `.venv/bin/uvicorn app.api.main:app
-  --port 8765` + llama-server(8080, 실제 LLM 호출) + `bun run build` 로
-  갓 빌드한 `frontend/dist`. 기기 A/B/C 는 각각 별도 curl 쿠키 자.
+- 커밋: `7d93282`
+- 실행자: 자동 (phase 6 완료 후 재검증)
+- **이 워크가 `afd8f4e` 워크를 대체한다.** 그 뒤 수락 수정 페이즈에서
+  프론트 *코드*(`frontend/src/App.tsx` — 오버레이 백드롭 가드 2곳),
+  테스트 스캐폴딩, 문서가 바뀌었다. 문서만 바뀐 게 아니므로 이전 워크는
+  현재 빌드를 대신할 수 없어, 시나리오를 처음부터 다시 걸었다.
+- 구성: `docker compose` db(5432, 마이그레이션은 부팅 전 수동 적용) +
+  `.venv/bin/uvicorn app.api.main:app --port 8765` + llama-server(8080,
+  실제 LLM 호출) + `bun run build` 로 갓 빌드한 `frontend/dist`.
+  기기 A/B/C/D 는 각각 별도 curl 쿠키 자(레포 밖 temp).
   로컬 http 라 `NANPASEOM_INSECURE_COOKIE=1` (문서화된 로컬 dev 예외 —
   이게 없으면 Secure 쿠키라 curl 이 http 로 되돌려 보내지 않는다).
 
@@ -124,30 +129,34 @@ NPC 말투가 아닌지, 배너 위치가 입력 바 바로 위인지 같은 것
 
 | 게이트 | 마지막 줄 |
 |---|---|
-| `.venv/bin/pytest -q` | `364 passed, 2 deselected, 1 warning in 6.81s` |
+| `.venv/bin/pytest -q` | `364 passed, 2 deselected, 1 warning in 6.87s` |
 | `python3 scripts/check_yaml.py` | `All yaml parsed OK.` |
 | `scripts/check_no_hardcoded_dialogue.py` | 출력 없음, exit 0 |
-| `bun run test` | `Tests  45 passed (45)` |
-| `bun run build` | `✓ built in 320ms` |
+| `bun run test` | `Tests  47 passed (47)` (6 files) |
+| `bun run build` | `✓ built in 312ms` |
 
-`frontend/dist` 는 실제로 재빌드했고 산출물은 커밋된 것과 바이트 동일
-(`git status frontend/dist` 비어 있음) — 결정적 빌드라 해시명도 그대로.
-스모크는 이 갓 빌드한 dist 를 서빙하는 서버에 대해 걸었다.
+`frontend/dist` 는 이번에도 실제로 재빌드했고, **산출물 바이트는 바뀌지
+않았다** — `index.html` md5 가 빌드 전후 동일(`b80453dc…`)하고 해시명
+청크(`index-DBQ5YUJG.js` / `index-Dn07JE7O.css`)도 그대로다. App.tsx 가
+바뀌었는데 dist 가 안 바뀐 게 아니라, dist 가 **이미 그 변경 이후로
+빌드돼 있었다**(재빌드 결과가 기존 파일과 일치 = 현재 소스와 동기).
+`frontend/dist/` 는 `.gitignore` 대상이라 git diff 로는 확인되지 않아
+md5 로 비교했다. 스모크는 이 갓 빌드한 dist 를 서빙하는 서버에 걸었다.
 
 ### 시나리오 단계별 결과
 
 | # | 항목 | 결과 | 증거 |
 |---|---|---|---|
-| 1 | 기기 A `POST /session/bootstrap` | PASS | 200, `status=new`, `has_save_code=false`, 오프닝 대사 + 선택지 3개(empathetic/provocative/deflecting), `Set-Cookie: session_uuid=…` |
-| 2 | 기기 A `POST /turn` × 3 | PASS | 전부 200 `kind=npc`, 응답 7~9초(실제 LLM), 500 없음 |
-| 3 | `POST /save-code` 2회 | PASS | `EAST-…` 형식 일치, 두 번 다 **같은 코드**(idempotent) |
+| 1 | 기기 A `POST /session/bootstrap` | PASS | 200, `status=new`, `has_save_code=false`, 오프닝 대사 + 선택지 3개(empathetic/provocative/deflecting), `Set-Cookie: session_uuid=b36e3e35-…; HttpOnly; Max-Age=15552000; SameSite=lax` |
+| 2 | 기기 A `POST /turn` × 3 | PASS | 전부 200 `kind=npc`, 실제 LLM 응답, 5xx 0건 |
+| 3 | `POST /save-code` 2회 | PASS | `SAND-W6FE` — `WORD-XXXX` 형식 일치, 두 번 다 **같은 코드**(idempotent). 발급 응답엔 `Set-Cookie` 없음 |
 | 4 | 기기 A 재-bootstrap | PASS | `status=resumed`, `has_save_code=true`, history 7개(오프닝 + 3왕복) 그대로 — 되돌아간 것 없음 |
-| 5 | 기기 B(새 자) redeem | PASS | 200 `status=resumed`, history 가 A 의 것과 **완전 일치**, `has_save_code=true`, `Set-Cookie` 로 A 와 같은 session_uuid 재바인딩 |
+| 5 | 기기 B(새 자) redeem | PASS | 200 `status=resumed`, history 가 A 의 것과 **완전 일치**(JSON 비교 True), `has_save_code=true`, `Set-Cookie` 로 A 와 같은 `b36e3e35-…` 재바인딩 |
 | 6 | 기기 B `POST /turn` × 2 | PASS | 둘 다 200 `kind=npc` |
-| 7 | **기기 A 원래 쿠키로 재-bootstrap** | **PASS** | history 8개(윈도우 상한)에 B 의 두 턴이 모두 들어 있고 A 의 이전 턴도 그대로 — 어느 기기에서 보든 최신 진행, 되돌아간 것 없음 |
-| 8 | 회전 | PASS | `/save-code/rotate` → `STAR-…`(옛 코드와 다름), 회전 응답에 `Set-Cookie` 없음(계약대로). 새 자에서 **옛 코드 → 404**, **새 코드 → 200 resumed**(같은 세션, history 8개) |
-| 9 | redeem 시도 제한 | PASS | 새 자에서 엉터리 코드 11연타 → 1~10회 404 + 평소 실패 문구, 11회째 **429** + `rules/save_code.yaml` 의 제한 문구 그대로. 실패 응답엔 `Set-Cookie` 없음(쿠키 자 비어 있음) |
-| 10 | 정적 서빙 / 문서 봉인 | PASS | `GET /` 200 text/html, 갓 빌드한 `dist/index.html` 과 바이트 동일. `/assets/index-*.js` 200(205KB), `/assets/index-*.css` 200. `/docs` `/redoc` `/openapi.json` 전부 **404** |
+| 7 | **기기 A 원래 쿠키로 재-bootstrap** | **PASS** | history 8개(윈도우 상한)에 B 의 두 턴(`다른 기기에서 이어서 왔어요…`, `그 보트는 다 고쳤나요?`)이 모두 들어 있고 A 의 이전 턴도 그대로 — 어느 기기에서 보든 최신 진행, 되돌아간 것 없음 |
+| 8 | 회전 | PASS | `/save-code/rotate` → `WAVE-2867`(옛 `SAND-W6FE` 와 다름), 회전 응답에 `Set-Cookie` 없음(계약대로). 새 자에서 **옛 코드 → 404**, **새 코드 → 200 resumed**(같은 세션, history 8개, 재바인딩 쿠키 있음) |
+| 9 | redeem 시도 제한 | PASS | 새 자에서 엉터리 코드 11연타 → 1~10회 404 + 평소 실패 문구, 11회째 **429** + `rules/save_code.yaml` 의 `redeem_rate_limited_message` 그대로 |
+| 10 | 정적 서빙 / 문서 봉인 | PASS | `GET /` 200 `text/html`, 갓 빌드한 `dist/index.html` 과 **바이트 동일**(`diff -q` 무차이). `/assets/index-DBQ5YUJG.js` 200, `/assets/index-Dn07JE7O.css` 200. `/docs` `/redoc` `/openapi.json` 전부 **404** |
 
 서버 로그에 5xx / Traceback 0건. 상태 코드 집계: 200 × 18, 404 × 14,
 429 × 1 (404 14건 = 문서 봉인 3 + 옛 코드 1 + 제한 워크 10).
@@ -167,8 +176,11 @@ NPC 말투가 아닌지, 배너 위치가 입력 바 바로 위인지 같은 것
 - 서버는 기동 시 마이그레이션을 적용하지 않는다(`apply_migrations` 는
   테스트/수동 경로에서만 호출). 이 워크는 사전에 수동으로 적용해
   띄웠다. 로컬/배포 절차의 문제일 뿐 제품 동작은 아니다.
-- 놀란 점 없음. 8번 회전의 `Set-Cookie` 부재, 9번 429 의 쿠키 부재,
-  redeem 성공 시의 재바인딩 모두 코드 주석에 적힌 계약과 일치했다.
+- 이전 워크(`afd8f4e`) 대비 달라진 동작 없음. 프론트 백드롭 수정은
+  브라우저 상호작용이라 HTTP 표면에 흔적을 남기지 않는다 — 그 확인은
+  아래 Phase 6 체크리스트로 사람이 걸어야 한다.
+- 놀란 점 없음. 8번 회전의 `Set-Cookie` 부재, 3번 발급의 `Set-Cookie`
+  부재, redeem 성공 시의 재바인딩 모두 코드 주석의 계약과 일치했다.
 
 ## Phase 6 — 수락 수정 (백드롭)
 
