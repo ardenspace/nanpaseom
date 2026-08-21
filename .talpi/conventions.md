@@ -81,7 +81,20 @@
   공유 단언. Secure 유무는 호출부가 각자 단언한다(발급 표면 = 항상 있다,
   env 매트릭스 = 있냐 없냐가 관찰 대상).
 
-## Prior work this phase (Phase 1 — 위생 2건)
+## Prior work this phase (Phase 2 — 회전과 추측 방어)
+
+- step 1: vitest 도입 — `frontend/vite.config.ts` 에 `test` 블록(jsdom,
+  `src/**/*.test.ts(x)`, setup 파일, `globals:false`). 프로덕션 빌드와
+  같은 Vite 파이프라인을 쓴다(별도 config 없음 → 플러그인/해석 드리프트
+  방지). `frontend/src/test/setup.ts` (신규 공유 — 전 테스트가 경유),
+  `frontend/src/playedHint.test.ts` (러너 실증 pin 3건).
+  스크립트: `bun run test` / `test:watch`. `build` 불변.
+  의존성: vitest 4.1.11, jsdom 30.0.1, @testing-library/react 16.3.2,
+  @testing-library/dom 10.4.1. RTL 을 지금 넣은 이유: B1 의 "회전 도달
+  가능 + 문구 명시"는 렌더 수준 사실이라 가짜 seam 을 만들어 pin 하면
+  허구를 pin 하게 된다.
+
+## Prior work — Phase 1 (완료, 참고용)
 
 - step 1: `tests/api/test_cookie_env_flag.py` (신규) — B6 허용목록 판정
   매트릭스(ON 5 / OFF 21 / unset), 발급 표면(Set-Cookie)으로 관찰.
@@ -132,6 +145,14 @@
   **실행한다**(Phase 2). 추출 후 남는 줄 수와 판단을 여기 갱신할 것.
 - 프론트 테스트 파일 배치·명명은 위임 — 단 하드코딩 게이트 스캔 대상
   (`frontend/**/*.ts(x)`)이므로 문구는 반드시 tone 홈에서 import.
+- **프론트 테스트 이름은 영어로 쓴다.** 하드코딩 게이트는 *문자열
+  리터럴*을 잡으므로 `it("힌트가 없으면…")` 자체가 위반이다. 한글
+  주석은 따옴표로 감싸지만 않으면 통과. 사용자 문구 단언은 `tone.ts`
+  에서 import (게이트가 설계대로 작동하는 것).
+- 프론트 테스트 환경 주의: Node 25 는 `globalThis.localStorage` 를 이미
+  갖고 있어 vitest jsdom 환경이 이를 건너뛴다 → `setup.ts` 가
+  jsdom 실물 storage 로 재지정한다. 스토리지를 쓰는 테스트(넛지
+  dismiss 플래그 등)는 이 setup 을 신뢰해도 된다.
 - dev 포트: backend **8765**(uvicorn), frontend **5173**(vite proxy →
   8765). 머신 상시 점유 포트(8080 llama-server, 8000, 8081, 5433, 5000,
   7000, 7265, 6463) 회피.

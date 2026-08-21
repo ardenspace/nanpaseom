@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -19,5 +20,18 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+  },
+  // 프론트 테스트 러너 — vitest. 별도 config 파일을 두지 않는 이유는
+  // 프로덕션 빌드와 *같은* vite 파이프라인(alias/plugin/tsconfig)에서 돌아야
+  // 테스트가 실제 번들과 어긋나지 않기 때문.
+  test: {
+    // jsdom — React 19 + testing-library 조합에서 가장 호환이 검증된 DOM 구현.
+    // playedHint 의 localStorage, 이후 페이즈의 다이얼로그 렌더가 모두 필요로 한다.
+    environment: "jsdom",
+    // 테스트는 소스 옆에 colocate (src 안이라 tsc 타입체크도 같이 받는다).
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    setupFiles: ["src/test/setup.ts"],
+    // globals 미사용 — describe/it/expect 는 각 파일에서 명시 import.
+    globals: false,
   },
 });
