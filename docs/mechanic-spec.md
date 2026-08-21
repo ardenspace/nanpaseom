@@ -101,7 +101,13 @@ Same React+Vite + FastAPI, plus PixiJS for real pixel-sprite animation, Cloudfla
 
 This addresses incognito-mode / localStorage-cleared sessions cleanly: the cookie uuid is the identity, not the localStorage blob.
 
-**Cross-device continuity via save code.** Cookie-only identity is single-browser. A player who starts on phone during a commute and wants to continue on a home PC needs an explicit bridge. When the player taps "세이브 코드 발급" in-game, the server mints a human-readable 9-character code (e.g. `MAST-7X2K`, `WAVE-3PQ9` — 가독 단어 프리픽스(허용 알파벳 내 4자 영단어 15개 목록) + 랜덤 4자, excluding visually confusable characters like 0/O, 1/I/L; 형식 결정은 ADR 0036) into `sessions.save_code`. On any device, entering the code in the title screen rebinds that browser's cookie to the existing session. Zero accounts, zero logins, pure recall. v1 stores plain codes in Postgres; rotation / invalidation deferred to v1.1 when abuse becomes a concern. 발급은 서버가 아는 비(非)밴 세션에만 — 미지 쿠키는 401, 세션 민팅 없음 (ADR 0033).
+**Cross-device continuity via save code.** Cookie-only identity is single-browser. A player who starts on phone during a commute and wants to continue on a home PC needs an explicit bridge. When the player taps "세이브 코드 발급" in-game, the server mints a human-readable 9-character code (e.g. `MAST-7X2K`, `WAVE-3PQ9` — 가독 단어 프리픽스(허용 알파벳 내 4자 영단어 15개 목록) + 랜덤 4자, excluding visually confusable characters like 0/O, 1/I/L; 형식 결정은 ADR 0036) into `sessions.save_code`. On any device, entering the code in the title screen rebinds that browser's cookie to the existing session. Zero accounts, zero logins, pure recall. v1 stores plain codes in Postgres. 발급은 서버가 아는 비(非)밴 세션에만 — 미지 쿠키는 401, 세션 민팅 없음 (ADR 0033).
+
+**세이브 코드 하드닝 (2026-08-21, ADR 0038–0040):** 상세는 ADR 위임, 여기엔 *무엇이 존재하는지*만.
+- `POST /save-code/rotate` — 플레이어가 코드를 갈아끼우는 경로. 세션당 활성 코드 1개, 회전 즉시 옛 코드는 redeem 404. 발급 `POST /save-code` 는 idempotent 그대로 (재확인이 종이에 적은 코드를 죽이지 않는다). 회전이 막는 것과 못 막는 것의 경계는 ADR 0038.
+- `POST /save-code/redeem` 시도 제한 — 초과 시 429 (재바인딩 없음). 수치/문구의 단일 홈은 `rules/save_code.yaml`, 키 선택·저장소 전제와 배포 런 재검토 의무는 ADR 0039.
+- 진입 성공 응답(`POST /session/bootstrap`, `POST /save-code/redeem`)에 가산 필드 `has_save_code` — 코드 미보유 세션에만 뜨는 프론트 넛지의 판정 권한. 필드의 서식지와 넛지가 약속하지 *않는* 것은 ADR 0040.
+- 갈아타기 대체 확인 다이얼로그의 탈출구 — 코드로 이어하기 전에 *이 기기 세션*의 코드를 먼저 받아 둘 수 있다 (돌아올 길을 만들고 나서 대체).
 
 **Public surface hygiene (2026-08-20, ADR 0035):** `GET /assets/*` 는 확장자 화이트리스트(이미지/폰트/빌드 산출물만, resolve 실파일 기준 — 문서류 `md`/`txt` 는 404), FastAPI 자동 문서(`/docs`/`/redoc`/`/openapi.json`)는 비활성, `/turn` 의 `npc_id` 는 런타임 배선 목록 검증(미지 값 404, 신원 401 판정이 먼저). 401/404 사용자 문구는 `rules/identity.yaml`.
 

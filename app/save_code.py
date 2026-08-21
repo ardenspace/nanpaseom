@@ -58,7 +58,7 @@ def generate_save_code() -> str:
     return f"{word}-{tail}"
 
 
-SAVE_CODE_MINT_ATTEMPTS = 20  # 31^8 공간 — 충돌 자체가 희귀, 상한은 안전장치
+SAVE_CODE_MINT_ATTEMPTS = 20  # 15 × 31^4 ≈ 1,385만 공간 (ADR 0036) — 충돌 자체가 희귀, 상한은 안전장치
 
 
 class SaveCodeMintError(RuntimeError):

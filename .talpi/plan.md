@@ -90,7 +90,7 @@ Contracts:
 - [x] ADR — redeem 시도 제한(직결 IP·XFF 불신뢰·단일 프로세스 메모리,
       배포 런 재검토 필수).
 - [x] ADR — `has_save_code` 와 넛지 best-effort(코드 보유 ≠ 실제 기록).
-- [ ] `docs/mechanic-spec.md` 정렬(+ mapping-spec 해당 행 확인) — 상세는
+- [x] `docs/mechanic-spec.md` 정렬(+ mapping-spec 해당 행 확인) — 상세는
       ADR 위임, 권한 문서 중복 금지.
 - [ ] 전 게이트 재실행(pytest / check_yaml / 하드코딩 grep / `bun run
       build` / vitest) + dist 재빌드 후 스모크 수행, 결과를
