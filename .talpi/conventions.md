@@ -117,6 +117,18 @@
    성공 진입 응답으로 한정하고, 밴 세션은 넛지 대상이 아니며 503 은
    보고할 세션 상태가 없다.
 
+- step 2: `has_save_code` 서버 구현. **신규 공유 지점**:
+  `app/api/main.py` 의 `_entry_response(conn, payload, session_uuid)` —
+  성공 진입 응답(new/resumed)의 단일 관문. bootstrap 과 redeem 이 둘 다
+  이걸 경유하고, `_bootstrap_response` 는 쿠키 발급 헬퍼로 그대로 남아
+  banned/503 경로가 계속 직접 호출한다(그래서 그 둘엔 필드가 안 붙음).
+  값은 `repo.get_save_code(...) is not None` — 읽기 시점 파생이라
+  독립 상태가 없어 드리프트할 수 없다. 스키마/migration/rules 무변경.
+  `app/api/main.py` 313 → 328줄(단일 파일 결정 유지). 364 passed.
+  **다음 스텝 인계**: `frontend/src/protocol.ts` 의 `BootstrapData` 에
+  `has_save_code?: boolean` 추가 — `RedeemData` 가 별칭이라 한 번만
+  고치면 두 표면이 모두 덮인다.
+
 ## Prior work — Phase 3 (완료, 참고용)
 
 - step 1: B4 계약 pin — `frontend/src/App.replaceConfirm.test.tsx` 12건.

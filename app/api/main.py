@@ -139,6 +139,21 @@ def _new_payload(conn, session_uuid: str, npc_id: str) -> dict:
             "choices": [c.model_dump() for c in opening.choices]}
 
 
+def _entry_response(conn, payload: dict, session_uuid: str) -> JSONResponse:
+    """세션 진입 성공(new/resumed) 응답 단일 홈 — bootstrap 과 redeem 공유 문.
+
+    B2b: 진입 wire shape 전체에 has_save_code 를 가산한다 — 이 세션에 유효한
+    세이브 코드가 있는지. 여기서 읽은 DB 값이 그 시점의 진실이고, 세션 도중
+    보유 상태가 바뀌는 경로는 발급(B2)·회전(B1) 뿐이다 (둘 다 코드를 돌려주므로
+    클라이언트가 추가 왕복 없이 참으로 간주 — 그 절반은 클라이언트 규칙).
+
+    banned / 503 은 진입 응답이 아니므로 이 문을 지나지 않는다 — 밴 세션은 넛지
+    대상이 아니고, 503 은 보고할 세션 상태가 없다.
+    """
+    has_save_code = repo.get_save_code(conn, session_uuid) is not None
+    return _bootstrap_response({**payload, "has_save_code": has_save_code}, session_uuid)
+
+
 @app.post("/session/bootstrap")
 def bootstrap(request: Request) -> JSONResponse:
     """B2 — 쿠키가 신원. new(오프닝 생성) / resumed(LLM 콜 없음) / banned / 503 error.
@@ -171,7 +186,7 @@ def bootstrap(request: Request) -> JSONResponse:
                     {"status": "error", "message": load_opening_rules().error_message},
                     session_uuid, status_code=503,
                 )
-        return _bootstrap_response(payload, session_uuid)
+        return _entry_response(conn, payload, session_uuid)
 
 
 # --------------------------------------------------------------- B3 세이브 코드
@@ -281,7 +296,7 @@ def redeem_save_code(req: RedeemRequest, request: Request) -> JSONResponse:
                     status_code=503,
                     content={"status": "error", "message": load_opening_rules().error_message},
                 )
-        return _bootstrap_response(payload, session_uuid)  # 성공 → 쿠키 재바인딩
+        return _entry_response(conn, payload, session_uuid)  # 성공 → 쿠키 재바인딩
 
 
 @app.get("/")
