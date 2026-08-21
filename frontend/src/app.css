@@ -404,6 +404,25 @@ button:disabled {
   opacity: 0.7;
 }
 
+/* 요청 중 — 백드롭은 닫는 표면이 아니다(클릭이 삼켜진다).
+   아무 반응도 없으면 고장으로 읽히므로, 삼키는 대신 기다림을 보인다:
+   커서는 진행 중(progress)으로 바뀌고, 막은 응답 대기 점(dot-pulse)과
+   같은 호흡으로 한 번 더 가라앉았다 올라온다. 새 문구 없이 상태만. */
+@keyframes backdrop-breathe {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.overlay__backdrop--busy {
+  cursor: progress;
+  animation: backdrop-breathe 2.2s infinite ease-in-out;
+}
+
 .overlay__panel {
   position: relative;
   width: 100%;

@@ -86,6 +86,14 @@ function readSaveCodeResult(r: ApiResult<SaveCodeIssueData>): SaveCodeResult {
   return { ok: false, error: data.message || GENERIC_ERROR };
 }
 
+/** 오버레이 백드롭의 클래스. 요청 중에는 백드롭이 닫는 표면이 아니라 클릭이
+ *  삼켜지므로(위 onClick 가드), 삼킨다는 사실을 커서/농도로 보인다 — 문구 없이.
+ *  두 오버레이(대체 확인 · 세이브 코드 패널)가 같은 표면을 쓰므로 여기 한 곳에서. */
+function backdropClass(busy: boolean): string {
+  const base = "overlay__backdrop";
+  return busy ? `${base} ${base}--busy` : base;
+}
+
 /** 대체 확인 탈출구의 진행 상태. "pending" 은 요청 중 — 결과가 나오면 판독 결과로
  *  대체된다. null 은 아직 탈출구를 누르지 않은 상태(다이얼로그를 닫으면 되돌아간다). */
 type RescueState = SaveCodeResult | "pending" | null;
@@ -444,7 +452,7 @@ export default function App() {
                 되살아난다. 가드는 closeConfirm 안이 아니라 여기 — redeem 은
                 busy 인 채로 closeConfirm 을 호출해 다이얼로그를 걷어낸다. */}
             <div
-              className="overlay__backdrop"
+              className={backdropClass(busy)}
               onClick={busy ? undefined : closeConfirm}
             />
             <div className="overlay__panel">
@@ -638,7 +646,7 @@ export default function App() {
               busy 만 남아 채팅이 통째로 굳고(있지도 않은 NPC 타이핑 표시까지 뜬다)
               늦게 온 회전 오류가 다음 확인 단계에 되살아난다. */}
           <div
-            className="overlay__backdrop"
+            className={backdropClass(busy)}
             onClick={busy ? undefined : closeSaveCode}
           />
           <div className="overlay__panel">

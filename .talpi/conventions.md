@@ -83,7 +83,22 @@
 
 ## Prior work this phase (Phase 7 — Acceptance fixes 2차)
 
-(아직 없음 — 첫 스텝 진행 중.)
+- step 1: 백드롭 무피드백 완화. `.overlay__backdrop` 은 원래 `cursor`
+  자체가 없어 `cursor: default` 는 no-op 이었을 것 — 대신 `--busy`
+  수식자에 `cursor: progress` + `backdrop-breathe`(0.7↔0.85, 2.2s)를
+  준다. 프로젝트 자체 어휘를 빌린 것(`.typing__dot` 의 `dot-pulse` 와
+  같은 '기다림' 은유를 장면 규모로 느리게). 새 문구 없음, tone.ts
+  무변경, 토큰 외 리터럴 색/픽셀 없음.
+  램프가 정지값 0.7 에서 시작해 자기제한적 — 300ms 에 끝나는 요청은
+  커서만 얻고 깜빡임이 사실상 없다.
+  **신규 공유 유틸**: `App.tsx` 모듈 스코프 `backdropClass(busy)` (두
+  오버레이 공용), `frontend/src/test/overlay.ts` 에 `findBackdrop()` /
+  `backdropShowsBusy()` 추가.
+  테스트 2건 추가(47 → **49**) — '두 오버레이 다 적용' 이 조용히 썩을
+  수 있는 부분이라 pin. 단언은 얇게(수식자 유무만), 구체적 연출은
+  app.css 소관으로 두고 pin 하지 않는다.
+  구현자가 헤드리스 크로미엄에서 실측(커서 `progress`, opacity 램프
+  0.700→0.850) + 게이트가 살아있음을 일회용 위반 파일로 실증.
 
 ## Prior work — Phase 6 (완료, 참고용)
 

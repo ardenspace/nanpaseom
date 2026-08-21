@@ -84,3 +84,5 @@
 - [2026-08-21T11:08:01Z] run review (through 4b9a106): 1 findings (0 fixed, 1 noted)
 - [2026-08-21T11:08:01Z] final report sent, awaiting acceptance
 - [2026-08-21T11:28:49Z] acceptance declined: 백드롭 피드백 완화, docs/retros 편입, ESC 메뉴를 v1 목표로 명시
+- [2026-08-21T11:28:49Z] phase 7 started (base: 798be32)
+- [2026-08-21T11:28:49Z] phase 7 contracts: none

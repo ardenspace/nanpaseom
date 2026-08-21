@@ -12,7 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
-import { clickBackdrop } from "./test/overlay";
+import { backdropShowsBusy, clickBackdrop } from "./test/overlay";
 import { jsonOk, stubServer } from "./test/stubServer";
 import {
   RETIRED_IMMUTABLE_CODE_CLAIM,
@@ -104,6 +104,22 @@ describe("save code panel rotation affordance", () => {
       name: SAVE_CODE_BUTTON,
     }) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
+  });
+
+  // 위 가드의 뒷면 — 삼켜진 클릭이 아무 반응도 없으면 고장으로 읽힌다.
+  // 요청 중 백드롭은 닫는 표면이 아니라는 사실이 화면에도 보여야 한다.
+  it("marks the backdrop as busy while a rotation is in flight", async () => {
+    await openSaveCodePanel();
+    expect(backdropShowsBusy()).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: SAVE_CODE_ROTATE }));
+    // 확인 단계의 회전 버튼 — 사이에 await 를 두지 않아야 요청이 떠 있는 상태다.
+    fireEvent.click(screen.getByRole("button", { name: SAVE_CODE_ROTATE }));
+    expect(backdropShowsBusy()).toBe(true);
+
+    // 요청이 끝나면 표시도 걷힌다 (다시 닫을 수 있는 표면).
+    await screen.findByText(ROTATED_CODE);
+    expect(backdropShowsBusy()).toBe(false);
   });
 });
 
