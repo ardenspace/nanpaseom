@@ -140,6 +140,17 @@
   **프론트 인계**: redeem 오류 경로가 이미 `data.message` 를 그대로
   띄우므로 429 문구는 서버(rules)가 소유한다 — tone 에 중복 상수를
   만들지 말 것(같은 사실 한 홈).
+- step 5: 훅 추출(동작 보존) + 401 회귀 pin. **신규 공유 유틸**:
+  `frontend/src/useTurn.ts` — `useTurn(deps): { sendTurn(text) }`,
+  `TurnDeps = { busy, setBusy, npcId, pushMsg, setChoices, showBanned,
+  enterChat }`. `applyTurn` 은 훅 내부 비공개(다른 호출부 없음).
+  `Msg` 타입의 홈도 여기(훅이 로그의 유일한 append 지점). 상태는 훅에
+  두지 않음 — `busy` 를 타이틀/redeem/발급 경로가 공유하므로 App 소유.
+  동작 델타는 밴 분기 2곳을 `showBanned(reason)` 로 합친 것뿐(`start()`
+  는 choices 를 안 비우므로 일부러 제외).
+  `frontend/src/App.turn401.test.tsx` — 401 복구 6건(호출 시퀀스까지
+  단언해 '무한 루프 없음'을 pin).
+  **App.tsx 534 → 476줄.**
 
 ## Prior work — Phase 1 (완료, 참고용)
 
@@ -193,8 +204,21 @@
   (`session_payload` 류)이 강제된다. 이건 리미터 추가와 직교하는 구조
   변경이라 자체 스텝을 가질 자격이 있고, 레이트리밋 커밋에 얹혀 가면 안
   된다. (다음 런 후보.)
-- `frontend/src/App.tsx`(534줄): 이번 런에서 applyTurn+sendTurn 훅 추출을
-  **실행한다**(Phase 2). 추출 후 남는 줄 수와 판단을 여기 갱신할 것.
+- `frontend/src/App.tsx` **476줄** (훅 추출 완료 — 534에서 감량).
+  300줄 트리거는 여전히 넘지만 유지: 남은 부피는 화면 3개(타이틀/밴/채팅)
+  렌더 트리 + 세이브 코드 발급/redeem/복사 핸들러이고, 다음 절단선은
+  화면 단위 컴포넌트 분리다(이번 런 범위 밖 — UI 를 더 얹는 페이즈가
+  남아 있어 지금 자르면 두 번 자르게 된다).
+- **기존 `/turn` 401 복구 경로의 관찰 사항** (step 5에서 발견, 고치지
+  않고 기록 — 이번 런 범위 밖):
+  1. 재시도가 복구 bootstrap 의 `npc_id` 대신 401 이전 클로저 값을 쓴다.
+  2. `resumed` 복구 시 서버가 준 history/choices 를 버리고 화면을 그대로
+     둔다(같은 세션이면 무해, 다른 세션이면 조용히 어긋남).
+  3. `new` 복구 시 방금 보낸 플레이어 입력이 시스템 안내 없이 사라진다 —
+     삼켜진 것처럼 읽힌다. (넛지 재노출이 키로 삼는 바로 그 seam.)
+  4. "1회 복구"는 페이지 로드가 아니라 턴 단위 — 사용자 행동당 유계.
+  5. `/turn` 비-401 실패는 서버 문구를 무시하고 GENERIC_ERROR 를 쓰는데
+     bootstrap 실패는 서버 문구를 선호한다(같은 실패류에 다른 안내).
 - 프론트 테스트 파일 배치·명명은 위임 — 단 하드코딩 게이트 스캔 대상
   (`frontend/**/*.ts(x)`)이므로 문구는 반드시 tone 홈에서 import.
 - **프론트 테스트 이름은 영어로 쓴다.** 하드코딩 게이트는 *문자열

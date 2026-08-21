@@ -38,7 +38,7 @@ Contracts: B1, B2, B3
       첫 민팅으로 성공, 문구는 rules YAML.
 - [x] redeem 시도 제한 구현 — 직결 IP 기준(XFF 불신뢰), 수치·문구는
       rules YAML, 윈도우 만료 기록 정리, 테스트에서 결정적 초기화 가능.
-- [ ] `App.tsx` applyTurn+sendTurn 훅 추출(동작 보존) + `/turn` 401 자동
+- [x] `App.tsx` applyTurn+sendTurn 훅 추출(동작 보존) + `/turn` 401 자동
       복구 경로 회귀 pin — B5 재노출 조건이 이 경로와 맞물리므로 여기서
       고정한다.
 - [ ] 회전 UI — 세이브 코드 보기 경로에서 도달, "이전 코드는 더 이상 쓸

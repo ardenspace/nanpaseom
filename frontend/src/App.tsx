@@ -3,15 +3,15 @@
 // "Still Here" 는 게임 타이틀(영문)이라 마크업에 둔다.
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { postJson, type ApiResult } from "./api";
+import { postJson } from "./api";
 import { markPlayedHint, readPlayedHint } from "./playedHint";
 import type {
   BootstrapData,
   Choice,
   RedeemData,
   SaveCodeIssueData,
-  TurnData,
 } from "./protocol";
+import { useTurn, type Msg } from "./useTurn";
 import {
   BANNED_TITLE,
   CONNECTING,
@@ -38,17 +38,11 @@ import {
   SAVE_CODE_SUBMIT,
   SEND_BUTTON,
   SERVER_UNREACHABLE,
-  SESSION_RESTORE_FAILED,
   START_BUTTON,
 } from "./tone";
 
-// warning/error 는 프레임 깨는 시스템 블록 — NPC 말풍선과 시각적으로 분리 렌더.
-// past = 재방문 복원된 지난 대화 (히스토리 prefix 에만 붙는다) — 흐리게 렌더.
-type Msg = {
-  kind: "npc" | "user" | "warning" | "error";
-  text: string;
-  past?: boolean;
-};
+// Msg (채팅 로그 엔트리) 는 useTurn.ts 소유 — 로그를 append 하는 쪽이 shape 의 홈.
+// 여기서는 렌더와 재방문 복원(past 부여)만 한다.
 
 type Screen = "title" | "chat" | "banned";
 
@@ -117,6 +111,26 @@ export default function App() {
     setSaveCode(null); // 세션이 바뀌었을 수 있으니 캐시된 코드 무효화.
     setScreen("chat");
   }
+
+  /** 차단 확정 → 사유 표시 + 선택지 봉인 + 화면 교체. turn 경로 전용 —
+   *  타이틀 bootstrap 의 banned 는 아직 채팅 상태가 없어 봉인할 선택지도 없다. */
+  function showBanned(reason: string) {
+    setBanReason(reason);
+    setChoices([]);
+    setScreen("banned");
+  }
+
+  // /turn 전송 + 401 자동 복구 + 응답 반영은 useTurn 소유 (동작 보존 추출).
+  // 상태는 여전히 여기 — 훅은 아래 setter 로만 화면을 만진다.
+  const { sendTurn } = useTurn({
+    busy,
+    setBusy,
+    npcId,
+    pushMsg,
+    setChoices,
+    showBanned,
+    enterChat,
+  });
 
   async function start() {
     if (busy) return;
@@ -226,78 +240,6 @@ export default function App() {
   function closeSaveCode() {
     setSaveCodeOpen(false);
     setSaveCodeCopied(false);
-  }
-
-  /** turn 응답을 화면에 반영. 401 처리(자동 재bootstrap)는 sendTurn 소유 —
-   *  여기 도달한 !ok 는 그 외 오류다. */
-  function applyTurn(r: ApiResult<TurnData>) {
-    if (r.unreachable) {
-      pushMsg("error", SERVER_UNREACHABLE);
-      return;
-    }
-    if (!r.ok) {
-      pushMsg("error", GENERIC_ERROR);
-      return;
-    }
-    const data = r.data;
-    if (data.kind === "ban") {
-      // 즉시 차단 화면 — 입력/선택지 전부 봉인.
-      setBanReason(data.reply ?? "");
-      setChoices([]);
-      setScreen("banned");
-    } else if (data.kind === "warning") {
-      // pinned 규칙: warning 은 UI 모드 불변 — 이전 npc choices 유지.
-      pushMsg("warning", data.reply ?? "");
-    } else {
-      pushMsg("npc", data.reply ?? "");
-      // 빈 choices → 자유 입력 모드 (렌더가 choices.length 로 분기).
-      setChoices(data.choices ?? []);
-    }
-  }
-
-  async function sendTurn(text: string) {
-    if (busy) return;
-    setBusy(true);
-    pushMsg("user", text);
-    // 신원은 쿠키가 전담 — 본문은 {npc_id, player_input} 뿐 (B1/B6).
-    const r = await postJson<TurnData>("/turn", {
-      npc_id: npcId,
-      player_input: text,
-    });
-    if (!r.unreachable && r.status === 401) {
-      // 서버가 세션을 모름(쿠키 소멸 등) — recoverable. 자동 재bootstrap 1회.
-      // 쿠키는 편의, 코드가 열쇠 — 세션이 없으면 새로 시작이 맞다.
-      const b = await postJson<BootstrapData>("/session/bootstrap");
-      if (b.unreachable) {
-        pushMsg("error", SERVER_UNREACHABLE);
-      } else if (b.data.status === "banned") {
-        setBanReason(b.data.ban_reason ?? "");
-        setChoices([]);
-        setScreen("banned");
-      } else if (b.data.status === "resumed") {
-        // 세션 복구됨 — 보류된 턴을 정확히 1회 재시도. 또 401 이면
-        // 재bootstrap 없이 정직하게 알리고 멈춘다 (무한 루프 금지).
-        const retry = await postJson<TurnData>("/turn", {
-          npc_id: npcId,
-          player_input: text,
-        });
-        if (!retry.unreachable && retry.status === 401) {
-          pushMsg("error", SESSION_RESTORE_FAILED);
-        } else {
-          applyTurn(retry);
-        }
-      } else if (b.data.status === "new") {
-        // 서버에 이 기기의 세션이 없었음 — 새 세션의 오프닝으로 진입.
-        // 보내려던 입력은 사라진 세션 소속이라 재전송하지 않는다.
-        enterChat(b.data);
-      } else {
-        // 503 {status:"error", message} — 서버 문구 우선.
-        pushMsg("error", b.data.message || GENERIC_ERROR);
-      }
-    } else {
-      applyTurn(r);
-    }
-    setBusy(false);
   }
 
   function submitFreeInput(e: React.FormEvent) {
