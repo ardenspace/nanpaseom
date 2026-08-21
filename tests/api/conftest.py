@@ -21,6 +21,13 @@ from app.store import db, repo
 # 전체가 이 한 곳을 본다 (같은 리터럴을 두 파일에 인라인하지 않는다).
 CONTRACT_COOKIE_MAX_AGE = 15552000
 
+# 형식은 유효하지만 어떤 세션에도 매이지 않은 코드 → redeem 404.
+# 시도 제한을 재는 테스트들의 "예산 한 칸을 쓰되 상태는 안 건드리는" 표준 노크.
+UNKNOWN_CODE = "ZZZZ-ZZZZ"
+
+# 직결 원격 주소 — ``ip_client`` 로 TestClient 에 주입한다 (문서용 TEST-NET-3 대역).
+IP_A = "203.0.113.10"
+
 
 def db_conn():
     """테스트용 DB 관찰 커넥션 (autocommit) — 부작용 없음 단언은 DB 직접 관찰로."""
@@ -149,6 +156,17 @@ def session_cookie_value(response) -> str | None:
     """응답 Set-Cookie 헤더에서 session_uuid 값 추출 (본문에는 더 이상 없다)."""
     headers = session_cookie_headers(response)
     return cookie_value(headers[0]) if headers else None
+
+
+def ip_client(ip: str) -> TestClient:
+    """주어진 직결 원격 주소로 보이는 클라이언트 (DB/LLM 세팅은 client fixture 소유).
+
+    IP 당 시도 제한을 재려면 요청마다 원격 주소가 달라 보여야 하는데, 기본
+    TestClient 는 전부 ``testclient`` 한 주소로 보인다 — 그래서 client=(host, port).
+    """
+    from app.api.main import app
+
+    return TestClient(app, client=(ip, 40000))
 
 
 @pytest.fixture()

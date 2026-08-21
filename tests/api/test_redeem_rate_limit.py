@@ -26,16 +26,21 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.save_code import load_save_code_rules
-from tests.api.conftest import known_session, session_cookie_headers, set_save_code
+from tests.api.conftest import (
+    IP_A,
+    UNKNOWN_CODE,
+    ip_client,
+    known_session,
+    session_cookie_headers,
+    set_save_code,
+)
 
 REDEEM_URL = "/save-code/redeem"
 
 GOOD_CODE = "ABCD-EFGH"      # 실제 세션에 매인 유효 코드
-UNKNOWN_CODE = "ZZZZ-ZZZZ"   # 형식은 유효, 미지의 코드 → 404
 MALFORMED_CODE = "not-a-code"  # 형식 위반 → DB 조회 없이 404
 
-# 직결 원격 주소 — TestClient 의 client=(host, port) 로 주입.
-IP_A = "203.0.113.10"
+# 두 번째 직결 원격 주소 — "IP 당 예산" 을 재는 이 파일에서만 쓴다 (IP_A 는 conftest).
 IP_B = "203.0.113.11"
 
 
@@ -53,13 +58,6 @@ def fresh_limiter():
     rate_limit.reset()
     yield rate_limit
     rate_limit.reset()
-
-
-def ip_client(ip: str) -> TestClient:
-    """주어진 직결 원격 주소로 보이는 클라이언트 (DB/LLM 세팅은 client fixture 소유)."""
-    from app.api.main import app
-
-    return TestClient(app, client=(ip, 40000))
 
 
 def _redeem(c: TestClient, code: str, **kwargs):

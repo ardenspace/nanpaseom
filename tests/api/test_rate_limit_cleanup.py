@@ -13,7 +13,7 @@ import pytest
 
 from app.api import rate_limit
 from app.save_code import load_save_code_rules
-from tests.api.test_redeem_rate_limit import UNKNOWN_CODE, IP_A, ip_client
+from tests.api.conftest import IP_A, UNKNOWN_CODE, ip_client
 
 WINDOW = 60.0  # 이 파일의 유닛 테스트가 쓰는 임의 윈도우 (엔드포인트 수치는 YAML)
 LIMIT = 3
