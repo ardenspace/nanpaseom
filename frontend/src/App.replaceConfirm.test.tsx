@@ -21,6 +21,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import { markPlayedHint } from "./playedHint";
+import { clickBackdrop } from "./test/overlay";
 import { json, stubServer, type StubReply } from "./test/stubServer";
 import {
   REPLACE_CONFIRM_CANCEL,
@@ -231,5 +232,50 @@ describe("escape hatch failure branches", () => {
 
   it("stays honest and keeps redeem usable when the network is down", async () => {
     await rescueFailureKeepsRedeemUsable("unreachable");
+  });
+});
+
+describe("dismissing the dialog while the escape hatch is in flight", () => {
+  // 회귀: 백드롭에만 가드가 없어서, 탈출구 요청 중에 누르면 다이얼로그는 닫히고
+  // busy 만 남았다 — 타이틀 버튼은 이유를 설명하는 화면 없이 죽어 있고, 늦게 온
+  // 결과가 다음에 열 때 되살아났다. 취소/백드롭/닫기는 탈출구 상태를 리셋한다는
+  // 계약 위반.
+  it("keeps the dialog up during the request and starts fresh after it closes", async () => {
+    // 응답 큐는 하나뿐 — 두 번째 요청이 나가면 stub 이 던진다.
+    const calls = stubServer({
+      [SAVE_CODE]: [json(200, { status: "ok", save_code: RESCUED_CODE })],
+    });
+
+    await openReplaceConfirm();
+    fireEvent.click(screen.getByRole("button", { name: REPLACE_RESCUE_CODE }));
+    // 사이에 await 를 두지 않는다 — stub 응답은 마이크로태스크라 아직 오지 않았고,
+    // 그래서 이 클릭은 요청이 떠 있는 동안의 백드롭 클릭이다.
+    clickBackdrop();
+
+    // (a) 요청 중 백드롭은 취소/확인과 같은 게이트 — 다이얼로그가 남는다.
+    expect(screen.getByText(REPLACE_CONFIRM_TITLE)).toBeTruthy();
+
+    // (b) 결과는 여전히 열려 있는 다이얼로그 안에 도착한다.
+    await screen.findByText(RESCUED_CODE);
+
+    // (c) 요청이 끝나면 백드롭은 다시 닫는 표면이고, 닫힌 뒤 타이틀은 살아 있다
+    //     (죽은 버튼만 남고 이유를 설명할 화면이 없는 상태가 없어야 한다).
+    clickBackdrop();
+    await waitFor(() => {
+      expect(screen.queryByText(REPLACE_CONFIRM_TITLE)).toBeNull();
+    });
+    const submit = screen.getByRole("button", {
+      name: SAVE_CODE_SUBMIT,
+    }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(false);
+
+    // (d) 다시 열면 처음부터 — 지난 코드가 되살아나지 않고 탈출구는 미실행 상태.
+    fireEvent.click(submit);
+    await screen.findByText(REPLACE_CONFIRM_TITLE);
+    expect(screen.queryByText(RESCUED_CODE)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: REPLACE_RESCUE_CODE }),
+    ).toBeTruthy();
+    expect(calls).toEqual([SAVE_CODE]);
   });
 });

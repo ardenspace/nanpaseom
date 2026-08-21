@@ -12,11 +12,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
+import { clickBackdrop } from "./test/overlay";
 import { jsonOk, stubServer } from "./test/stubServer";
 import {
   RETIRED_IMMUTABLE_CODE_CLAIM,
   SAVE_CODE_BUTTON,
   SAVE_CODE_ISSUED_NOTE,
+  SAVE_CODE_ISSUED_TITLE,
   SAVE_CODE_ROTATE,
   SAVE_CODE_ROTATE_WARNING,
   START_BUTTON,
@@ -72,6 +74,36 @@ describe("save code panel rotation affordance", () => {
     await waitFor(() => {
       expect(document.body.textContent).toContain(SAVE_CODE_ROTATE_WARNING);
     });
+  });
+
+  // 대체 확인 다이얼로그와 같은 회귀(App.replaceConfirm.test.tsx) — 백드롭만
+  // 가드가 없으면 요청 중에 패널이 닫혀 busy 만 남는다. 여기서는 채팅 전체가
+  // 굳고 NPC 타이핑 표시까지 뜬다 — 무엇도 그 이유를 설명하지 않는다.
+  it("keeps the panel up when the backdrop is clicked during a rotation", async () => {
+    await openSaveCodePanel();
+    fireEvent.click(screen.getByRole("button", { name: SAVE_CODE_ROTATE }));
+    // 확인 단계의 회전 버튼 — 누르면 요청이 뜬다. 사이에 await 를 두지 않아야
+    // 다음 클릭이 요청 중의 백드롭 클릭이 된다 (stub 응답은 마이크로태스크).
+    fireEvent.click(screen.getByRole("button", { name: SAVE_CODE_ROTATE }));
+    clickBackdrop();
+
+    // 패널 제목과 채팅 헤더 버튼이 같은 문구 — 제목 쪽만 본다.
+    expect(
+      screen.getByRole("heading", { name: SAVE_CODE_ISSUED_TITLE }),
+    ).toBeTruthy();
+
+    // 새 코드는 열려 있는 패널 안에 도착하고, 그 뒤 백드롭은 다시 닫는 표면이다.
+    await screen.findByText(ROTATED_CODE);
+    clickBackdrop();
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("heading", { name: SAVE_CODE_ISSUED_TITLE }),
+      ).toBeNull();
+    });
+    const saveButton = screen.getByRole("button", {
+      name: SAVE_CODE_BUTTON,
+    }) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
   });
 });
 

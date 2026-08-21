@@ -438,7 +438,15 @@ export default function App() {
         </div>
         {confirmOpen && (
           <div className="overlay" role="dialog" aria-modal="true">
-            <div className="overlay__backdrop" onClick={closeConfirm} />
+            {/* 백드롭도 취소/확인과 같은 게이트 — 요청 중에는 닫는 표면이 아니다.
+                닫아 버리면 다이얼로그 없이 busy 만 남아(타이틀 버튼이 이유를
+                설명하는 화면 없이 죽는다) 늦게 온 탈출구 결과가 다음에 열 때
+                되살아난다. 가드는 closeConfirm 안이 아니라 여기 — redeem 은
+                busy 인 채로 closeConfirm 을 호출해 다이얼로그를 걷어낸다. */}
+            <div
+              className="overlay__backdrop"
+              onClick={busy ? undefined : closeConfirm}
+            />
             <div className="overlay__panel">
               <h2 className="overlay__title overlay__title--warning">
                 {REPLACE_CONFIRM_TITLE}
@@ -626,7 +634,13 @@ export default function App() {
 
       {saveCodeOpen && saveCode && (
         <div className="overlay" role="dialog" aria-modal="true">
-          <div className="overlay__backdrop" onClick={closeSaveCode} />
+          {/* 대체 확인 다이얼로그와 같은 이유의 가드 — 회전 요청 중에 닫히면
+              busy 만 남아 채팅이 통째로 굳고(있지도 않은 NPC 타이핑 표시까지 뜬다)
+              늦게 온 회전 오류가 다음 확인 단계에 되살아난다. */}
+          <div
+            className="overlay__backdrop"
+            onClick={busy ? undefined : closeSaveCode}
+          />
           <div className="overlay__panel">
             <h2 className="overlay__title">{SAVE_CODE_ISSUED_TITLE}</h2>
             {/* 확인 단계에서도 코드는 계속 보인다 — 무엇이 죽는지 보이는 채로 결정. */}
